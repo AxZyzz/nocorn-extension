@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NoCorn Settings</title>
+  <link href="styles/options.css" rel="stylesheet">
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <div class="logo">
+        <div class="logo-icon">🛡️</div>
+        <h1>NoCorn Settings</h1>
+      </div>
+    </header>
+
+    <nav class="nav-tabs">
+      <button class="tab-btn active" data-tab="general">General</button>
+      <button class="tab-btn" data-tab="blocking">Blocking</button>
+      <button class="tab-btn" data-tab="accountability">Accountability</button>
+      <button class="tab-btn" data-tab="data">Data & Privacy</button>
+    </nav>
+
+    <main class="main-content">
+      <!-- General Tab -->
+      <div class="tab-content active" id="general">
+        <div class="section">
+          <h2>🔔 Notifications</h2>
+          <div class="setting-group">
+            <div class="setting-item">
+              <label class="switch">
+                <input type="checkbox" id="notifications-enabled" checked>
+                <span class="slider"></span>
+              </label>
+              <div class="setting-info">
+                <h4>Enable Notifications</h4>
+                <p>Get motivational messages and session updates</p>
+              </div>
+            </div>
+            
+            <div class="setting-item">
+              <label class="switch">
+                <input type="checkbox" id="daily-motivation" checked>
+                <span class="slider"></span>
+              </label>
+              <div class="setting-info">
+                <h4>Daily Motivation</h4>
+                <p>Receive daily encouragement messages</p>
+              </div>
+            </div>
+
+            <div class="setting-item">
+              <label class="switch">
+                <input type="checkbox" id="milestone-alerts" checked>
+                <span class="slider"></span>
+              </label>
+              <div class="setting-info">
+                <h4>Milestone Alerts</h4>
+                <p>Get notified when you reach important milestones</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h2>🎨 Appearance</h2>
+          <div class="setting-group">
+            <div class="setting-item">
+              <select id="theme-select">
+                <option value="default">Default Theme</option>
+                <option value="dark">Dark Theme</option>
+                <option value="calm">Calm Blue</option>
+                <option value="nature">Nature Green</option>
+              </select>
+              <div class="setting-info">
+                <h4>Color Theme</h4>
+                <p>Choose your preferred visual theme</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h2>🧘 Wellness Features</h2>
+          <div class="setting-group">
+            <div class="setting-item">
+              <label class="switch">
+                <input type="checkbox" id="breathing-exercises" checked>
+                <span class="slider"></span>
+              </label>
+              <div class="setting-info">
+                <h4>Breathing Exercises</h4>
+                <p>Show breathing exercises on blocked pages</p>
+              </div>
+            </div>
+
+            <div class="setting-item">
+              <label class="switch">
+                <input type="checkbox" id="motivational-quotes" checked>
+                <span class="slider"></span>
+              </label>
+              <div class="setting-info">
+                <h4>Motivational Content</h4>
+                <p>Display inspiring messages during temptation</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Blocking Tab -->
+      <div class="tab-content" id="blocking">
+        <div class="section">
+          <h2>🚫 Blocking Rules</h2>
+          <div class="setting-group">
+            <div class="setting-item">
+              <label class="switch">
+                <input type="checkbox" id="strict-mode" checked>
+                <span class="slider"></span>
+              </label>
+              <div class="setting-info">
+                <h4>Strict Mode</h4>
+                <p>Enable more aggressive blocking (includes image search, social media triggers)</p>
+              </div>
+            </div>
+
+            <div class="setting-item">
+              <label class="switch">
+                <input type="checkbox" id="incognito-blocking" checked>
+                <span class="slider"></span>
+              </label>
+              <div class="setting-info">
+                <h4>Block in Incognito Mode</h4>
+                <p>Apply blocking rules to incognito/private browsing</p>
+              </div>
+            </div>
+
+            <div class="setting-item">
+              <label class="switch">
+                <input type="checkbox" id="safe-search" checked>
+                <span class="slider"></span>
+              </label>
+              <div class="setting-info">
+                <h4>Force Safe Search</h4>
+                <p>Automatically enable safe search on search engines</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h2>✅ Whitelist</h2>
+          <div class="whitelist-section">
+            <p>Add sites that should never be blocked, even during sessions:</p>
+            <div class="whitelist-controls">
+              <input type="text" id="whitelist-input" placeholder="Enter domain (e.g., github.com)">
+              <button id="add-whitelist-btn" class="btn btn-primary">Add</button>
+            </div>
+            <div class="whitelist-list" id="whitelist-list">
+              <!-- Whitelist items will be populated here -->
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h2>⏰ Session Defaults</h2>
+          <div class="setting-group">
+            <div class="setting-item">
+              <select id="default-duration">
+                <option value="1">1 Day</option>
+                <option value="3">3 Days</option>
+                <option value="7" selected>7 Days</option>
+                <option value="15">15 Days</option>
+                <option value="30">30 Days</option>
+              </select>
+              <div class="setting-info">
+                <h4>Default Session Duration</h4>
+                <p>Pre-select this duration when starting new sessions</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Accountability Tab -->
+      <div class="tab-content" id="accountability">
+        <div class="section">
+          <h2>👥 Accountability Partner</h2>
+          <div class="accountability-setup">
+            <p>Set up an accountability partner who will be notified if you try to disable sessions early:</p>
+            
+            <div class="partner-form">
+              <div class="form-group">
+                <label for="partner-name">Partner Name:</label>
+                <input type="text" id="partner-name" placeholder="Enter name">
+              </div>
+              
+              <div class="form-group">
+                <label for="partner-email">Partner Email:</label>
+                <input type="email" id="partner-email" placeholder="Enter email address">
+              </div>
+              
+              <div class="form-group">
+                <label for="partner-message">Custom Message:</label>
+                <textarea id="partner-message" placeholder="Message to send when you need support...">Hey! I'm struggling with my digital wellness commitment and could use some encouragement. Can you help me stay on track?</textarea>
+              </div>
+              
+              <button id="save-partner-btn" class="btn btn-primary">Save Partner</button>
+            </div>
+
+            <div class="current-partner" id="current-partner" style="display: none;">
+              <h4>Current Partner</h4>
+              <div class="partner-info">
+                <p><strong>Name:</strong> <span id="current-partner-name"></span></p>
+                <p><strong>Email:</strong> <span id="current-partner-email"></span></p>
+                <button id="remove-partner-btn" class="btn btn-secondary">Remove Partner</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h2>📊 Progress Sharing</h2>
+          <div class="setting-group">
+            <div class="setting-item">
+              <label class="switch">
+                <input type="checkbox" id="weekly-reports">
+                <span class="slider"></span>
+              </label>
+              <div class="setting-info">
+                <h4>Weekly Progress Reports</h4>
+                <p>Send weekly progress reports to your accountability partner</p>
+              </div>
+            </div>
+
+            <div class="setting-item">
+              <label class="switch">
+                <input type="checkbox" id="milestone-sharing">
+                <span class="slider"></span>
+              </label>
+              <div class="setting-info">
+                <h4>Share Milestones</h4>
+                <p>Automatically share achievement milestones with your partner</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h2>🆘 Emergency Settings</h2>
+          <div class="setting-group">
+            <div class="setting-item">
+              <select id="emergency-attempts">
+                <option value="1">1 Attempt</option>
+                <option value="3" selected>3 Attempts</option>
+                <option value="5">5 Attempts</option>
+                <option value="never">Never Allow</option>
+              </select>
+              <div class="setting-info">
+                <h4>Emergency Disable Attempts</h4>
+                <p>Number of times you can request emergency disable before partner notification</p>
+              </div>
+            </div>
+
+            <div class="setting-item">
+              <label class="switch">
+                <input type="checkbox" id="delay-disable" checked>
+                <span class="slider"></span>
+              </label>
+              <div class="setting-info">
+                <h4>Emergency Disable Delay</h4>
+                <p>Add a 5-minute waiting period before emergency disable is processed</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Data & Privacy Tab -->
+      <div class="tab-content" id="data">
+        <div class="section">
+          <h2>📊 Your Data</h2>
+          <div class="data-overview">
+            <div class="data-stats">
+              <div class="data-stat">
+                <h4 id="total-sessions">0</h4>
+                <p>Sessions Completed</p>
+              </div>
+              <div class="data-stat">
+                <h4 id="total-clean-days">0</h4>
+                <p>Total Clean Days</p>
+              </div>
+              <div class="data-stat">
+                <h4 id="total-points">0</h4>
+                <p>Points Earned</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h2>📁 Data Management</h2>
+          <div class="data-actions">
+            <button id="export-data-btn" class="btn btn-primary">
+              📥 Export My Data
+            </button>
+            <button id="import-data-btn" class="btn btn-secondary">
+              📤 Import Data
+            </button>
+            <input type="file" id="import-file" accept=".json" style="display: none;">
+          </div>
+          <p class="data-note">
+            Export your progress data as a backup or to transfer to another device.
+          </p>
+        </div>
+
+        <div class="section">
+          <h2>🔄 Reset Options</h2>
+          <div class="reset-options">
+            <button id="reset-stats-btn" class="btn btn-warning">
+              Reset Statistics Only
+            </button>
+            <button id="reset-all-btn" class="btn btn-danger">
+              Reset Everything
+            </button>
+          </div>
+          <p class="reset-note">
+            <strong>Warning:</strong> Reset actions cannot be undone. Consider exporting your data first.
+          </p>
+        </div>
+
+        <div class="section">
+          <h2>🔒 Privacy</h2>
+          <div class="privacy-info">
+            <h4>Your Privacy Matters</h4>
+            <p>NoCorn stores all data locally on your device. We do not collect, transmit, or store any personal information on external servers.</p>
+            
+            <h4>What We Store:</h4>
+            <ul>
+              <li>Your blocking preferences and site list</li>
+              <li>Progress statistics and achievements</li>
+              <li>Settings and configuration</li>
+            </ul>
+            
+            <h4>What We Don't Store:</h4>
+            <ul>
+              <li>Your browsing history</li>
+              <li>Personal identifying information</li>
+              <li>Data on external servers</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="scripts/options.js"></script>
+</body>
+</html>

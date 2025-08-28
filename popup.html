@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NoCorn - Digital Wellness</title>
+  <link href="styles/popup.css" rel="stylesheet">
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <div class="logo">
+        <div class="logo-icon">🛡️</div>
+        <h1>NoCorn</h1>
+      </div>
+      <button id="panic-btn" class="panic-button" title="Emergency Support">🆘</button>
+    </header>
+
+    <!-- Status Display -->
+    <div class="status-section">
+      <div class="streak-display">
+        <div class="streak-number" id="current-streak">0</div>
+        <div class="streak-label">Day Streak</div>
+      </div>
+      
+      <div class="stats-grid">
+        <div class="stat-item">
+          <div class="stat-value" id="total-score">0</div>
+          <div class="stat-label">Points</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value" id="sites-blocked">0</div>
+          <div class="stat-label">Sites Blocked</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Active Block Status -->
+    <div class="block-status" id="block-status">
+      <div class="status-inactive">
+        <h3>No Active Block Session</h3>
+        <p>Ready to start your commitment</p>
+      </div>
+    </div>
+
+    <!-- Block Session Controls -->
+    <div class="session-controls" id="session-controls">
+      <h3>Start Block Session</h3>
+      
+      <div class="duration-selector">
+        <label>Block Duration:</label>
+        <select id="duration-select">
+          <option value="1">1 Day (Trial)</option>
+          <option value="3">3 Days</option>
+          <option value="7" selected>7 Days</option>
+          <option value="15">15 Days</option>
+          <option value="30">30 Days</option>
+          <option value="custom">Custom Duration</option>
+        </select>
+        <input type="number" id="custom-days" placeholder="Days" min="1" max="365" style="display: none;">
+      </div>
+
+      <div class="sites-section">
+        <label>Sites to Block:</label>
+        <div class="sites-list" id="sites-list">
+          <!-- Sites will be populated here -->
+        </div>
+        <div class="add-site">
+          <input type="text" id="new-site" placeholder="Add website (e.g., example.com)">
+          <button id="add-site-btn">Add</button>
+        </div>
+      </div>
+
+      <button id="start-session" class="start-button">
+        🔒 Start Commitment Block
+      </button>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="navigation">
+      <button class="nav-btn" id="achievements-btn">🏆 Achievements</button>
+      <button class="nav-btn" id="insights-btn">📊 Insights</button>
+      <button class="nav-btn" id="settings-btn">⚙️ Settings</button>
+    </nav>
+  </div>
+
+  <!-- Modals -->
+  <div id="achievement-modal" class="modal">
+    <div class="modal-content">
+      <span class="close">&times;</span>
+      <h2>🏆 Achievements</h2>
+      <div id="achievements-list" class="achievements-grid">
+        <!-- Achievements will be populated here -->
+      </div>
+    </div>
+  </div>
+
+  <div id="insights-modal" class="modal">
+    <div class="modal-content">
+      <span class="close">&times;</span>
+      <h2>📊 Your Progress</h2>
+      <div class="insights-content">
+        <div class="insight-item">
+          <h4>Total Clean Days</h4>
+          <div class="insight-value" id="total-clean-days">0</div>
+        </div>
+        <div class="insight-item">
+          <h4>Longest Streak</h4>
+          <div class="insight-value" id="best-streak">0</div>
+        </div>
+        <div class="insight-item">
+          <h4>Sessions Completed</h4>
+          <div class="insight-value" id="sessions-completed">0</div>
+        </div>
+        <div class="progress-chart">
+          <h4>Progress Timeline</h4>
+          <canvas id="progress-chart" width="300" height="150"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="scripts/popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Site Blocked - NoCorn</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 20px;
+    }
+
+    .blocked-container {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 40px;
+      max-width: 600px;
+      width: 100%;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    }
+
+    .shield-icon {
+      font-size: 80px;
+      margin-bottom: 20px;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+    }
+
+    h1 {
+      font-size: 2.5em;
+      margin-bottom: 16px;
+      font-weight: 700;
+    }
+
+    .blocked-site {
+      background: rgba(255, 255, 255, 0.2);
+      padding: 12px 24px;
+      border-radius: 25px;
+      display: inline-block;
+      margin: 20px 0;
+      font-weight: 600;
+      font-size: 1.2em;
+    }
+
+    .motivation {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 15px;
+      padding: 30px;
+      margin: 30px 0;
+      border-left: 4px solid #4CAF50;
+    }
+
+    .motivation h3 {
+      color: #4CAF50;
+      margin-bottom: 15px;
+      font-size: 1.3em;
+    }
+
+    .motivation p {
+      font-size: 1.1em;
+      line-height: 1.6;
+      margin-bottom: 10px;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 20px;
+      margin: 30px 0;
+    }
+
+    .stat {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 2em;
+      font-weight: 700;
+      color: #4CAF50;
+      margin-bottom: 8px;
+    }
+
+    .stat-label {
+      font-size: 0.9em;
+      opacity: 0.9;
+    }
+
+    .actions {
+      display: flex;
+      gap: 15px;
+      margin-top: 30px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      padding: 15px 30px;
+      border: none;
+      border-radius: 25px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-decoration: none;
+      display: inline-block;
+    }
+
+    .btn-primary {
+      background: #4CAF50;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #45a049;
+      transform: translateY(-2px);
+      box-shadow: 0 10px 25px rgba(76, 175, 80, 0.4);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.3);
+      transform: translateY(-2px);
+    }
+
+    .btn-danger {
+      background: #ff4757;
+      color: white;
+    }
+
+    .btn-danger:hover {
+      background: #ff3838;
+      transform: translateY(-2px);
+      box-shadow: 0 10px 25px rgba(255, 71, 87, 0.4);
+    }
+
+    .breathing-exercise {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 15px;
+      padding: 30px;
+      margin: 20px 0;
+      text-align: center;
+    }
+
+    .breathing-circle {
+      width: 120px;
+      height: 120px;
+      border: 3px solid #4CAF50;
+      border-radius: 50%;
+      margin: 20px auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2em;
+      font-weight: 600;
+      color: #4CAF50;
+      animation: breathe 4s infinite;
+    }
+
+    @keyframes breathe {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.2); }
+    }
+
+    @media (max-width: 600px) {
+      .blocked-container {
+        padding: 20px;
+      }
+      
+      h1 {
+        font-size: 2em;
+      }
+      
+      .actions {
+        flex-direction: column;
+        align-items: center;
+      }
+      
+      .btn {
+        width: 100%;
+        max-width: 300px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="blocked-container">
+    <div class="shield-icon">🛡️</div>
+    <h1>Site Blocked</h1>
+    <div class="blocked-site" id="blocked-site">
+      Loading...
+    </div>
+    
+    <div class="motivation" id="motivation">
+      <h3>💪 Stay Strong!</h3>
+      <p id="motivation-text">You made a commitment to yourself. This is your future self protecting your current self!</p>
+    </div>
+
+    <div class="stats" id="stats">
+      <div class="stat">
+        <div class="stat-value" id="current-streak">0</div>
+        <div class="stat-label">Day Streak</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="time-remaining">--</div>
+        <div class="stat-label">Time Remaining</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="total-score">0</div>
+        <div class="stat-label">Points</div>
+      </div>
+    </div>
+
+    <div class="breathing-exercise">
+      <h3>Take a Moment to Breathe</h3>
+      <div class="breathing-circle">Breathe</div>
+      <p>Follow the circle: Inhale as it grows, exhale as it shrinks</p>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-primary" onclick="goToSafeActivity()">
+        🌟 Do Something Positive
+      </button>
+      <button class="btn btn-secondary" onclick="openExtension()">
+        📊 Check Progress
+      </button>
+      <button class="btn btn-danger" onclick="requestDisable()" id="disable-btn">
+        ⚠️ Request Disable
+      </button>
+    </div>
+  </div>
+
+  <script>
+    class BlockedPage {
+      constructor() {
+        this.init();
+      }
+
+      async init() {
+        this.loadBlockedSite();
+        await this.loadStats();
+        this.loadMotivationalContent();
+        this.startTimeUpdates();
+      }
+
+      loadBlockedSite() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const site = urlParams.get('site') || 'this site';
+        document.getElementById('blocked-site').textContent = site;
+        document.title = `${site} - Blocked by NoCorn`;
+      }
+
+      async loadStats() {
+        try {
+          const data = await chrome.storage.local.get([
+            'currentStreak', 
+            'totalScore', 
+            'activeSession'
+          ]);
+
+          document.getElementById('current-streak').textContent = data.currentStreak || 0;
+          document.getElementById('total-score').textContent = data.totalScore || 0;
+
+          if (data.activeSession) {
+            this.updateTimeRemaining(data.activeSession.endTime);
+          }
+        } catch (error) {
+          console.error('Error loading stats:', error);
+        }
+      }
+
+      updateTimeRemaining(endTime) {
+        const update = () => {
+          const now = Date.now();
+          const remaining = endTime - now;
+
+          if (remaining <= 0) {
+            document.getElementById('time-remaining').textContent = 'Complete!';
+            return;
+          }
+
+          const days = Math.floor(remaining / (24 * 60 * 60 * 1000));
+          const hours = Math.floor((remaining % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
+          const minutes = Math.floor((remaining % (60 * 60 * 1000)) / (60 * 1000));
+
+          if (days > 0) {
+            document.getElementById('time-remaining').textContent = `${days}d ${hours}h`;
+          } else if (hours > 0) {
+            document.getElementById('time-remaining').textContent = `${hours}h ${minutes}m`;
+          } else {
+            document.getElementById('time-remaining').textContent = `${minutes}m`;
+          }
+        };
+
+        update();
+        setInterval(update, 60000); // Update every minute
+      }
+
+      loadMotivationalContent() {
+        const messages = [
+          {
+            icon: '💪',
+            title: 'Stay Strong!',
+            text: 'You made a commitment to yourself. This is your future self protecting your current self!'
+          },
+          {
+            icon: '🎯',
+            title: 'Remember Your Goal!',
+            text: 'Every moment you resist is a moment you\'re building a stronger, healthier version of yourself.'
+          },
+          {
+            icon: '🌟',
+            title: 'You\'re Worth It!',
+            text: 'The life you want is on the other side of this commitment. Stay focused on your why.'
+          },
+          {
+            icon: '🔥',
+            title: 'Build Your Streak!',
+            text: 'Each day you stay committed adds to your streak. You\'re building something amazing!'
+          },
+          {
+            icon: '🛡️',
+            title: 'Your Shield is Working!',
+            text: 'This block is protecting you from a momentary impulse that could derail your progress.'
+          }
+        ];
+
+        const randomMessage = messages[Math.floor(Math.random() * messages.length)];
+        
+        document.querySelector('#motivation h3').innerHTML = `${randomMessage.icon} ${randomMessage.title}`;
+        document.getElementById('motivation-text').textContent = randomMessage.text;
+      }
+
+      startTimeUpdates() {
+        // Update stats every 5 minutes
+        setInterval(() => {
+          this.loadStats();
+        }, 5 * 60 * 1000);
+      }
+    }
+
+    function goToSafeActivity() {
+      const safeActivities = [
+        'https://www.youtube.com/results?search_query=meditation+music',
+        'https://www.youtube.com/results?search_query=workout+videos',
+        'https://www.youtube.com/results?search_query=educational+documentaries',
+        'https://www.google.com/search?q=healthy+recipes',
+        'https://www.google.com/search?q=productivity+tips',
+        'https://www.wikipedia.org',
+        'https://www.ted.com/talks',
+        'https://www.coursera.org',
+        'https://www.khanacademy.org'
+      ];
+
+      const randomActivity = safeActivities[Math.floor(Math.random() * safeActivities.length)];
+      window.location.href = randomActivity;
+    }
+
+    function openExtension() {
+      chrome.runtime.sendMessage({ action: 'openExtension' });
+    }
+
+    async function requestDisable() {
+      const confirmed = confirm(
+        '⚠️ WARNING ⚠️\n\n' +
+        'Requesting to disable this session will:\n' +
+        '• Reset your current streak to 0\n' +
+        '• Deduct points from your score\n' +
+        '• Notify your accountability partner (if set)\n\n' +
+        'Are you sure you want to continue?'
+      );
+
+      if (confirmed) {
+        // Track the disable attempt
+        chrome.runtime.sendMessage({ 
+          action: 'emergencyDisable', 
+          data: { 
+            reason: 'User requested disable from blocked page',
+            location: 'blocked_page'
+          }
+        });
+
+        // Show motivational intervention instead of actually disabling
+        showMotivationalIntervention();
+      }
+    }
+
+    function showMotivationalIntervention() {
+      const intervention = document.createElement('div');
+      intervention.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.9);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+      `;
+
+      intervention.innerHTML = `
+        <div style="background: white; color: #333; padding: 40px; border-radius: 20px; text-align: center; max-width: 500px; margin: 20px;">
+          <div style="font-size: 60px; margin-bottom: 20px;">🛡️</div>
+          <h2 style="color: #4CAF50; margin-bottom: 20px;">Wait! Let's Talk About This</h2>
+          <p style="margin-bottom: 20px; font-size: 16px; line-height: 1.6;">
+            You're here because you wanted to change. That person who set up this block session believed in you.
+          </p>
+          <p style="margin-bottom: 30px; font-weight: 600; color: #ff4757;">
+            Don't let a temporary urge destroy your long-term goals.
+          </p>
+          <div style="display: flex; gap: 15px; justify-content: center;">
+            <button onclick="this.parentElement.parentElement.parentElement.remove()" style="background: #4CAF50; color: white; border: none; padding: 15px 30px; border-radius: 25px; cursor: pointer; font-weight: 600;">
+              You're Right - I'll Stay Strong 💪
+            </button>
+          </div>
+        </div>
+      `;
+
+      document.body.appendChild(intervention);
+
+      // Auto-remove after 10 seconds
+      setTimeout(() => {
+        if (document.body.contains(intervention)) {
+          document.body.removeChild(intervention);
+        }
+      }, 10000);
+    }
+
+    // Initialize the blocked page
+    document.addEventListener('DOMContentLoaded', () => {
+      new BlockedPage();
+    });
+  </script>
+</body>
+</html>
