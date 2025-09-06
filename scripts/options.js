@@ -7,7 +7,9 @@ class NoCornOptions {
   async init() {
     this.setupTabNavigation();
     this.setupEventListeners();
+    this.setupAuthEventListeners();
     await this.loadSettings();
+    await this.checkAuthStatus();
     this.updateDataOverview();
   }
 
@@ -132,6 +134,110 @@ class NoCornOptions {
     });
   }
 
+  setupAuthEventListeners() {
+    // Signin button
+    const signinBtn = document.getElementById('signin-btn-settings');
+    if (signinBtn) {
+      signinBtn.addEventListener('click', async () => {
+        try {
+          const { default: firstTimeSignin } = await import('../src/auth/FirstTimeSignin.js');
+          firstTimeSignin.show((user) => {
+            this.onAuthSuccess(user);
+          });
+        } catch (error) {
+          console.error('Failed to load signin component:', error);
+          this.showNotification('Failed to load signin. Please refresh the page.', 'error');
+        }
+      });
+    }
+
+    // Signout button
+    const signoutBtn = document.getElementById('signout-btn-settings');
+    if (signoutBtn) {
+      signoutBtn.addEventListener('click', async () => {
+        try {
+          const { default: authService } = await import('../src/auth/AuthService.js');
+          const result = await authService.signOut();
+          if (result.success) {
+            this.onSignOut();
+            this.showNotification('Signed out successfully', 'info');
+          } else {
+            this.showNotification('Failed to sign out', 'error');
+          }
+        } catch (error) {
+          console.error('Signout failed:', error);
+          this.showNotification('Failed to sign out', 'error');
+        }
+      });
+    }
+  }
+
+  async checkAuthStatus() {
+    try {
+      const { needsAuthentication } = await chrome.storage.local.get(['needsAuthentication']);
+      
+      if (needsAuthentication) {
+        this.showUnauthenticatedState();
+      } else {
+        // Try to get user info from auth service
+        try {
+          const { default: authService } = await import('../src/auth/AuthService.js');
+          const user = authService.getCurrentUser();
+          
+          if (user) {
+            this.showAuthenticatedState(user);
+          } else {
+            this.showUnauthenticatedState();
+          }
+        } catch (error) {
+          console.error('Failed to check auth status:', error);
+          this.showUnauthenticatedState();
+        }
+      }
+    } catch (error) {
+      console.error('Failed to check authentication status:', error);
+      this.showUnauthenticatedState();
+    }
+  }
+
+  showAuthenticatedState(user) {
+    document.getElementById('auth-status-text-settings').textContent = 'Signed In';
+    document.getElementById('signin-btn-settings').style.display = 'none';
+    document.getElementById('signout-btn-settings').style.display = 'inline-block';
+    document.getElementById('user-info-settings').style.display = 'block';
+    
+    document.getElementById('user-email-settings').textContent = user.email;
+    // Try to get username from user metadata
+    const username = user.user_metadata?.username || 'Not set';
+    document.getElementById('user-username-settings').textContent = username;
+  }
+
+  showUnauthenticatedState() {
+    document.getElementById('auth-status-text-settings').textContent = 'Not Signed In';
+    document.getElementById('signin-btn-settings').style.display = 'inline-block';
+    document.getElementById('signout-btn-settings').style.display = 'none';
+    document.getElementById('user-info-settings').style.display = 'none';
+  }
+
+  async onAuthSuccess(user) {
+    // Notify background script
+    try {
+      await chrome.runtime.sendMessage({ 
+        action: 'authenticationComplete', 
+        user: user 
+      });
+    } catch (error) {
+      console.error('Failed to notify background script:', error);
+    }
+    
+    this.showAuthenticatedState(user);
+    this.showNotification(`Welcome, ${user.email}! 🎉`, 'success');
+  }
+
+  onSignOut() {
+    this.showUnauthenticatedState();
+  }
+
   async loadSettings() {
     const data = await chrome.storage.local.get([
       'settings',
@@ -172,12 +278,40 @@ class NoCornOptions {
     this.whitelist = data.whitelist || [];
     this.updateWhitelistDisplay();
 
+    // Load blocked sites
+    await this.loadBlockedSites();
+
     // Load accountability partner
     this.accountabilityPartner = data.accountabilityPartner;
     this.updateAccountabilityPartnerDisplay();
 
     // Apply theme
     this.applyTheme(settings.theme);
+  }
+
+  async loadBlockedSites() {
+    const data = await chrome.storage.local.get(['blockedSites']);
+    this.blockedSites = data.blockedSites || [];
+    this.updateBlockedSitesDisplay();
+  }
+
+  updateBlockedSitesDisplay() {
+    const list = document.getElementById('blocked-sites-list');
+    
+    if (this.blockedSites.length === 0) {
+      list.innerHTML = '<p style="padding: 16px; color: #666; text-align: center;">No blocked sites yet. Add sites from the popup to see them here.</p>';
+      return;
+    }
+
+    list.innerHTML = this.blockedSites.map(site => `
+      <div class="blocked-site-item" style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #f8f9fa; border-radius: 6px; margin-bottom: 8px;">
+        <div style="display: flex; align-items: center;">
+          <span style="font-size: 18px; margin-right: 8px;">🚫</span>
+          <span style="font-weight: 500;">${site}</span>
+        </div>
+        <span style="color: #666; font-size: 12px;">Blocked</span>
+      </div>
+    `).join('');
   }
 
   async saveSetting(key, value) {

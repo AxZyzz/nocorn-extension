@@ -6,7 +6,7 @@
 
 body {
   width: 400px;
-  min-height: 500px;
+  height: 600px;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: #333;
@@ -14,7 +14,7 @@ body {
 
 .container {
   background: white;
-  min-height: 500px;
+  height: 600px;
   display: flex;
   flex-direction: column;
 }
@@ -28,6 +28,28 @@ body {
   justify-content: space-between;
   align-items: center;
   box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.header.unauthenticated {
+  justify-content: center;
+}
+
+.auth-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.auth-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #4CAF50;
+}
+
+.auth-indicator.offline {
+  background: #ff4757;
 }
 
 .logo {
@@ -453,6 +475,299 @@ body {
   height: auto;
 }
 
+/* Authentication Modal Styles */
+.auth-modal {
+  z-index: 1002;
+}
+
+.auth-modal-content {
+  max-width: 450px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 0;
+}
+
+.auth-header {
+  background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+  color: white;
+  padding: 24px;
+  text-align: center;
+  border-radius: 12px 12px 0 0;
+}
+
+.auth-header .auth-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.auth-header .logo-icon {
+  font-size: 32px;
+}
+
+.auth-header h2 {
+  font-size: 24px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.auth-subtitle {
+  opacity: 0.9;
+  font-size: 14px;
+  margin: 0;
+}
+
+.auth-tabs {
+  display: flex;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.auth-tab {
+  flex: 1;
+  padding: 16px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-weight: 600;
+  color: #666;
+  transition: all 0.2s ease;
+}
+
+.auth-tab.active {
+  background: white;
+  color: #4CAF50;
+  border-bottom: 2px solid #4CAF50;
+}
+
+.auth-tab:hover {
+  background: #e9ecef;
+}
+
+.auth-form {
+  padding: 24px;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: #333;
+  font-size: 14px;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  font-size: 14px;
+  transition: border-color 0.2s ease;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: #4CAF50;
+  box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
+}
+
+.auth-submit-btn {
+  width: 100%;
+  padding: 14px;
+  background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+  margin-bottom: 12px;
+}
+
+.auth-submit-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+}
+
+.auth-forgot-btn {
+  width: 100%;
+  padding: 8px;
+  background: transparent;
+  color: #4CAF50;
+  border: none;
+  font-size: 14px;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.auth-benefits {
+  background: #f8f9fa;
+  padding: 20px 24px;
+  border-top: 1px solid #e9ecef;
+}
+
+.auth-benefits h4 {
+  margin-bottom: 12px;
+  color: #333;
+  font-size: 16px;
+}
+
+.auth-benefits ul {
+  list-style: none;
+  padding: 0;
+}
+
+.auth-benefits li {
+  padding: 6px 0;
+  font-size: 14px;
+  color: #666;
+}
+
+.auth-loading {
+  text-align: center;
+  padding: 40px 24px;
+}
+
+.loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #4CAF50;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 16px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.auth-error {
+  background: #ff4757;
+  color: white;
+  padding: 12px 24px;
+  margin: 16px 24px;
+  border-radius: 6px;
+  font-size: 14px;
+  text-align: center;
+}
+
+/* Unauthenticated State */
+.unauthenticated-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 24px;
+  text-align: center;
+}
+
+.unauthenticated-content h3 {
+  color: #333;
+  margin-bottom: 16px;
+  font-size: 20px;
+}
+
+.unauthenticated-content p {
+  color: #666;
+  margin-bottom: 24px;
+  line-height: 1.5;
+}
+
+.auth-cta-btn {
+  background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+  color: white;
+  border: none;
+  padding: 14px 32px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+  margin-bottom: 16px;
+}
+
+.auth-cta-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+}
+
+.continue-offline-btn {
+  background: transparent;
+  color: #666;
+  border: 1px solid #ddd;
+  padding: 10px 24px;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.continue-offline-btn:hover {
+  background: #f8f9fa;
+  border-color: #4CAF50;
+  color: #4CAF50;
+}
+
+/* User Profile Section */
+.user-profile {
+  background: #f8f9fa;
+  padding: 12px 20px;
+  border-bottom: 1px solid #e9ecef;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.user-avatar {
+  width: 24px;
+  height: 24px;
+  background: #4CAF50;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.user-email {
+  font-size: 12px;
+  color: #666;
+}
+
+.sign-out-btn {
+  background: transparent;
+  border: none;
+  color: #ff4757;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+.sign-out-btn:hover {
+  background: #fff5f5;
+}
+
 /* Responsive adjustments */
 @media (max-width: 420px) {
   body {
@@ -466,5 +781,10 @@ body {
   .modal-content {
     width: 90%;
     margin: 10% auto;
+  }
+
+  .auth-modal-content {
+    width: 95%;
+    margin: 5% auto;
   }
 }

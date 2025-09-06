@@ -1,15 +1,21 @@
 {
-  "name": "vite-react-typescript-starter",
+  "name": "nocorn-extension-secure",
   "private": true,
-  "version": "0.0.0",
+  "version": "2.0.0",
   "type": "module",
+  "description": "NoCorn - Secure Digital Wellness Extension with Blockchain Integration",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "supabase:start": "supabase start",
+    "supabase:stop": "supabase stop",
+    "supabase:reset": "supabase db reset"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.38.0",
+    "crypto-js": "^4.2.0",
     "lucide-react": "^0.344.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"

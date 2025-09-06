@@ -1,66 +1,279 @@
 // Popup script for NoCorn extension
+import authService from '../src/auth/AuthService.js';
+import authUI from '../src/auth/AuthUI.js';
+import firstTimeSignin from '../src/auth/FirstTimeSignin.js';
+
 class NoCornPopup {
   constructor() {
+    this.backendEnabled = false;
+    this.backendConnection = null;
+    this.authService = authService;
+    this.authUI = authUI;
+    this.isAuthenticated = false;
+    this.offlineMode = false;
     this.init();
   }
 
   async init() {
-    this.setupEventListeners();
+    // Initialize authentication service first
+    await this.authService.initialize();
+    
+    // Check if user is already authenticated
+    if (this.authService.isAuthenticated()) {
+      console.log('User already authenticated, proceeding normally');
+      this.isAuthenticated = true;
+      this.showAuthenticatedUI();
+    } else {
+      // Check if first-time authentication is needed
+      const { needsAuthentication } = await chrome.storage.local.get(['needsAuthentication']);
+      
+      if (needsAuthentication) {
+        // Show first-time signin modal
+        firstTimeSignin.show((user) => {
+          this.onFirstTimeSigninComplete(user);
+        });
+        return;
+      } else {
+        // Show unauthenticated UI
+        this.showUnauthenticatedUI();
+      }
+    }
+    
+    // Initialize backend connection if authenticated
+    if (this.isAuthenticated) {
+      await this.initializeAuth();
+    }
+    
+    // Wait for DOM to be ready before setting up event listeners
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => {
+        this.setupEventListeners();
+        this.setupAuthEventListeners();
+        this.setupModals();
+      });
+    } else {
+      this.setupEventListeners();
+      this.setupAuthEventListeners();
+      this.setupModals();
+    }
+    
+    // Load data and update display
     await this.loadData();
     this.updateDisplay();
-    this.setupModals();
+  }
+
+  async initializeAuth() {
+    try {
+      // Try to connect to backend
+      const { default: backendConnection } = await import('../src/backend/BackendConnection.js');
+      const result = await backendConnection.initialize();
+      
+      if (result.success) {
+        this.backendConnection = backendConnection;
+        
+        if (result.authenticated) {
+          this.backendEnabled = true;
+          this.isAuthenticated = true;
+          console.log('✅ User authenticated and backend connected');
+          this.showAuthenticatedUI();
+        } else if (result.requiresAuth) {
+          console.log('⚠️ Authentication required');
+          this.showUnauthenticatedUI();
+        }
+      } else {
+        console.log('❌ Backend connection failed');
+        this.showOfflineMode();
+      }
+    } catch (error) {
+      console.error('Auth initialization failed:', error);
+      this.showOfflineMode();
+    }
+  }
+
+  setupAuthEventListeners() {
+    // Sign out button
+    const signOutBtn = document.getElementById('sign-out-btn');
+    if (signOutBtn) {
+      signOutBtn.addEventListener('click', async () => {
+        await this.authService.signOut();
+        // Clear needsAuthentication flag and show unauthenticated UI
+        await chrome.storage.local.remove(['needsAuthentication']);
+        this.isAuthenticated = false;
+        this.showUnauthenticatedUI();
+      });
+    }
+
+    // Show auth button
+    const showAuthBtn = document.getElementById('show-auth-btn');
+    if (showAuthBtn) {
+      showAuthBtn.addEventListener('click', () => {
+        this.authUI.show();
+      });
+    }
+
+    // Continue offline button
+    const continueOfflineBtn = document.getElementById('continue-offline-btn');
+    if (continueOfflineBtn) {
+      continueOfflineBtn.addEventListener('click', () => {
+        this.showOfflineMode();
+      });
+    }
+
+    // Listen for auth state changes
+    this.authService.addAuthStateListener((event, user) => {
+      if (event === 'signed_in') {
+        this.onAuthSuccess(user);
+      } else if (event === 'signed_out') {
+        this.onSignOut();
+      }
+    });
   }
 
   setupEventListeners() {
+    console.log('Setting up event listeners...');
+    
     // Panic button
-    document.getElementById('panic-btn').addEventListener('click', () => {
-      this.triggerPanicMode();
-    });
+    const panicBtn = document.getElementById('panic-btn');
+    if (panicBtn) {
+      console.log('Panic button found, adding listener');
+      panicBtn.addEventListener('click', (e) => {
+        console.log('Panic button clicked');
+        e.preventDefault();
+        this.triggerPanicMode();
+      });
+    } else {
+      console.warn('Panic button not found');
+    }
 
     // Duration selector
     const durationSelect = document.getElementById('duration-select');
     const customDays = document.getElementById('custom-days');
     
-    durationSelect.addEventListener('change', () => {
-      if (durationSelect.value === 'custom') {
-        customDays.style.display = 'block';
-        customDays.focus();
-      } else {
-        customDays.style.display = 'none';
-      }
-    });
+    if (durationSelect && customDays) {
+      console.log('Duration selector found, adding listener');
+      durationSelect.addEventListener('change', () => {
+        if (durationSelect.value === 'custom') {
+          customDays.style.display = 'block';
+          customDays.focus();
+        } else {
+          customDays.style.display = 'none';
+        }
+      });
+    } else {
+      console.warn('Duration selector or custom days not found');
+    }
 
     // Add site
-    document.getElementById('add-site-btn').addEventListener('click', () => {
-      this.addSite();
-    });
-
-    document.getElementById('new-site').addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') {
+    const addSiteBtn = document.getElementById('add-site-btn');
+    if (addSiteBtn) {
+      console.log('Add site button found, adding listener');
+      addSiteBtn.addEventListener('click', (e) => {
+        console.log('Add site button clicked');
+        e.preventDefault();
         this.addSite();
-      }
-    });
+      });
+    } else {
+      console.warn('Add site button not found');
+    }
+
+    const newSiteInput = document.getElementById('new-site');
+    if (newSiteInput) {
+      console.log('New site input found, adding listener');
+      newSiteInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          console.log('Enter pressed in new site input');
+          e.preventDefault();
+          this.addSite();
+        }
+      });
+    } else {
+      console.warn('New site input not found');
+    }
 
     // Start session
-    document.getElementById('start-session').addEventListener('click', () => {
-      this.startBlockSession();
-    });
+    const startSessionBtn = document.getElementById('start-session');
+    if (startSessionBtn) {
+      console.log('Start session button found, adding listener');
+      startSessionBtn.addEventListener('click', (e) => {
+        console.log('Start session button clicked');
+        e.preventDefault();
+        this.startBlockSession();
+      });
+    } else {
+      console.warn('Start session button not found');
+    }
 
     // Navigation buttons
-    document.getElementById('achievements-btn').addEventListener('click', () => {
-      this.showAchievements();
-    });
+    const achievementsBtn = document.getElementById('achievements-btn');
+    if (achievementsBtn) {
+      console.log('Achievements button found, adding listener');
+      achievementsBtn.addEventListener('click', (e) => {
+        console.log('Achievements button clicked');
+        e.preventDefault();
+        this.showAchievements();
+      });
+    } else {
+      console.warn('Achievements button not found');
+    }
 
-    document.getElementById('insights-btn').addEventListener('click', () => {
-      this.showInsights();
-    });
+    const insightsBtn = document.getElementById('insights-btn');
+    if (insightsBtn) {
+      console.log('Insights button found, adding listener');
+      insightsBtn.addEventListener('click', (e) => {
+        console.log('Insights button clicked');
+        e.preventDefault();
+        this.showInsights();
+      });
+    } else {
+      console.warn('Insights button not found');
+    }
 
-    document.getElementById('settings-btn').addEventListener('click', () => {
-      chrome.runtime.openOptionsPage();
-    });
+    const settingsBtn = document.getElementById('settings-btn');
+    if (settingsBtn) {
+      console.log('Settings button found, adding listener');
+      settingsBtn.addEventListener('click', (e) => {
+        console.log('Settings button clicked');
+        e.preventDefault();
+        chrome.runtime.openOptionsPage();
+      });
+    } else {
+      console.warn('Settings button not found');
+    }
+    
+    console.log('Event listeners setup complete');
   }
 
   async loadData() {
+    if (this.isAuthenticated && this.backendConnection) {
+      try {
+        // Load data from backend
+        const userData = await this.backendConnection.getUserData();
+        const blockedSites = await this.backendConnection.getBlockedSites();
+        
+        this.currentStreak = userData.current_streak || 0;
+        this.totalScore = userData.total_score || 0;
+        this.blockedSites = blockedSites.map(s => s.site) || [];
+        
+        // Sync with local storage for offline access
+        await chrome.storage.local.set({
+          currentStreak: this.currentStreak,
+          totalScore: this.totalScore,
+          blockedSites: this.blockedSites
+        });
+        
+        console.log('✅ Data loaded from backend');
+      } catch (error) {
+        console.error('Failed to load backend data:', error);
+        // Fallback to local storage
+        await this.loadLocalData();
+      }
+    } else {
+      // Load from local storage
+      await this.loadLocalData();
+    }
+  }
+
+  async loadLocalData() {
     const data = await chrome.storage.local.get([
       'currentStreak',
       'totalScore',
@@ -81,6 +294,128 @@ class NoCornPopup {
       sessionsCompleted: 0,
       progressHistory: []
     };
+  }
+
+  // UI State Management
+  showAuthenticatedUI() {
+    const userProfile = document.getElementById('user-profile');
+    const unauthenticatedContent = document.getElementById('unauthenticated-content');
+    const mainContent = document.getElementById('main-content');
+    
+    if (userProfile) userProfile.style.display = 'flex';
+    if (unauthenticatedContent) unauthenticatedContent.style.display = 'none';
+    if (mainContent) mainContent.style.display = 'block';
+    
+    // Update user profile display
+    const currentUser = this.authService.getCurrentUser();
+    if (currentUser) {
+      const userEmail = document.getElementById('user-email');
+      const userAvatar = document.getElementById('user-avatar');
+      
+      if (userEmail) userEmail.textContent = currentUser.email;
+      if (userAvatar) userAvatar.textContent = currentUser.email.charAt(0).toUpperCase();
+    }
+    
+    // Update auth status
+    this.updateAuthStatus('authenticated', 'Synced');
+  }
+
+  showUnauthenticatedUI() {
+    const authStatusText = document.getElementById('auth-status-text');
+    const authIndicator = document.getElementById('auth-indicator');
+    const userProfile = document.getElementById('user-profile');
+    const unauthenticatedContent = document.getElementById('unauthenticated-content');
+    const mainContent = document.getElementById('main-content');
+    
+    if (authStatusText) authStatusText.textContent = 'Sign In Required';
+    if (authIndicator) authIndicator.classList.add('offline');
+    if (userProfile) userProfile.style.display = 'none';
+    if (unauthenticatedContent) unauthenticatedContent.style.display = 'flex';
+    if (mainContent) mainContent.style.display = 'none';
+  }
+
+  showOfflineMode() {
+    document.getElementById('auth-status-text').textContent = 'Offline Mode';
+    document.getElementById('auth-indicator').classList.add('offline');
+    document.getElementById('user-profile').style.display = 'none';
+    document.getElementById('unauthenticated-content').style.display = 'none';
+    document.getElementById('main-content').style.display = 'block';
+    this.offlineMode = true;
+  }
+
+  // Authentication event handlers
+  async onAuthSuccess(user) {
+    this.isAuthenticated = true;
+    
+    // Clear needsAuthentication flag since user is now authenticated
+    await chrome.storage.local.remove(['needsAuthentication']);
+    
+    this.showAuthenticatedUI();
+    
+    // Initialize backend connection
+    await this.initializeAuth();
+    
+    // Reload data
+    await this.loadData();
+    this.updateDisplay();
+    
+    this.showNotification(`Welcome back, ${user.email}! 🎉`, 'success');
+  }
+
+  async onSignOut() {
+    this.isAuthenticated = false;
+    this.backendEnabled = false;
+    this.showUnauthenticatedUI();
+  }
+
+  async signOut() {
+    try {
+      await this.authService.signOut();
+      this.showNotification('Signed out successfully', 'info');
+    } catch (error) {
+      console.error('Sign out failed:', error);
+      this.showNotification('Failed to sign out', 'error');
+    }
+  }
+
+  continueOffline() {
+    this.showOfflineMode();
+    this.loadData();
+    this.updateDisplay();
+  }
+
+  async onFirstTimeSigninComplete(user) {
+    try {
+      // Notify background script that authentication is complete
+      await chrome.runtime.sendMessage({ 
+        action: 'authenticationComplete', 
+        user: user 
+      });
+      
+      // Initialize the popup normally
+      await this.initializeAuth();
+      
+      // Wait for DOM to be ready before setting up event listeners
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+          this.setupEventListeners();
+          this.setupAuthEventListeners();
+          this.setupModals();
+        });
+      } else {
+        this.setupEventListeners();
+        this.setupAuthEventListeners();
+        this.setupModals();
+      }
+      
+      await this.loadData();
+      this.updateDisplay();
+      
+      this.showNotification(`Welcome to NoCorn, ${user.email}! 🎉`, 'success');
+    } catch (error) {
+      console.error('Failed to complete first-time signin:', error);
+      this.showNotification('Authentication completed, but there was an issue. Please refresh.', 'warning');
+    }
   }
 
   updateDisplay() {
@@ -177,15 +512,41 @@ class NoCornPopup {
       return;
     }
 
-    this.blockedSites.push(cleanSite);
-    await chrome.storage.local.set({ blockedSites: this.blockedSites });
-    
-    this.totalScore += 10; // Points for adding a site
-    await chrome.storage.local.set({ totalScore: this.totalScore });
-    
-    input.value = '';
-    this.updateDisplay();
-    this.showNotification(`Added ${cleanSite} to block list`, 'success');
+    try {
+      if (this.isAuthenticated && this.backendConnection) {
+        // Use backend to add site (includes validation and points)
+        await this.backendConnection.addBlockedSite(cleanSite);
+        
+        // Sync with local storage
+        const userData = await this.backendConnection.getUserData();
+        this.totalScore = userData.total_score;
+        await chrome.storage.local.set({ totalScore: this.totalScore });
+        
+        // Update local sites list
+        const backendSites = await this.backendConnection.getBlockedSites();
+        this.blockedSites = backendSites.map(s => s.site);
+        await chrome.storage.local.set({ blockedSites: this.blockedSites });
+        
+        console.log('✅ Site added via backend');
+      } else {
+        // Fallback to local storage
+        this.blockedSites.push(cleanSite);
+        await chrome.storage.local.set({ blockedSites: this.blockedSites });
+        
+        this.totalScore += 10; // Points for adding a site
+        await chrome.storage.local.set({ totalScore: this.totalScore });
+        
+        console.log('✅ Site added locally');
+      }
+      
+      input.value = '';
+      this.updateDisplay();
+      this.showNotification(`Added ${cleanSite} to block list (+10 points)`, 'success');
+      
+    } catch (error) {
+      console.error('Failed to add site:', error);
+      this.showNotification(error.message || 'Failed to add site', 'error');
+    }
   }
 
   async removeSite(site) {
@@ -230,20 +591,40 @@ class NoCornPopup {
       emergencyAttempts: 0
     };
 
-    await chrome.storage.local.set({ activeSession: this.activeSession });
+    try {
+      // Save to backend if authenticated
+      if (this.isAuthenticated && this.backendConnection) {
+        await this.backendConnection.createSession(this.activeSession);
+        console.log('✅ Session created in backend');
+      }
+      
+      // Always save to local storage as backup
+      await chrome.storage.local.set({ activeSession: this.activeSession });
 
-    // Update blocking rules
-    await this.updateBlockingRules();
+      // Update blocking rules
+      await this.updateBlockingRules();
 
-    // Award points for starting session
-    this.totalScore += days * 50;
-    await chrome.storage.local.set({ totalScore: this.totalScore });
+      // Award points for starting session
+      if (this.isAuthenticated && this.backendConnection) {
+        // Points already awarded by backend
+        const userData = await this.backendConnection.getUserData();
+        this.totalScore = userData.total_score;
+      } else {
+        this.totalScore += days * 50;
+      }
+      
+      await chrome.storage.local.set({ totalScore: this.totalScore });
 
-    this.updateDisplay();
-    this.showNotification(`Block session started for ${days} days!`, 'success');
+      this.updateDisplay();
+      this.showNotification(`Block session started for ${days} days! (+${days * 50} points)`, 'success');
 
-    // Notify background script
-    chrome.runtime.sendMessage({ action: 'sessionStarted', session: this.activeSession });
+      // Notify background script
+      chrome.runtime.sendMessage({ action: 'sessionStarted', session: this.activeSession });
+      
+    } catch (error) {
+      console.error('Failed to start session:', error);
+      this.showNotification('Failed to start session. Please try again.', 'error');
+    }
   }
 
   async showConfirmationDialog(days) {
@@ -359,8 +740,8 @@ class NoCornPopup {
         </ul>
         <textarea id="emergency-reason" placeholder="Why do you need to disable this session?" style="width: 100%; height: 80px; margin: 12px 0; padding: 8px; border: 1px solid #ddd; border-radius: 4px;"></textarea>
         <div style="display: flex; gap: 12px; margin-top: 20px;">
-          <button id="emergency-confirm" style="flex: 1; background: #ff4757; color: white; border: none; padding: 12px; border-radius: 6px; cursor: pointer;">Disable Session</button>
-          <button id="emergency-cancel" style="flex: 1; background: #4CAF50; color: white; border: none; padding: 12px; border-radius: 6px; cursor: pointer;">Stay Strong</button>
+          <button id="emergency-confirm" style="background: #ff4757; color: white; border: none; padding: 12px; border-radius: 6px; cursor: pointer;">Disable Session</button>
+          <button id="emergency-cancel" style="background: #4CAF50; color: white; border: none; padding: 12px; border-radius: 6px; cursor: pointer;">Stay Strong</button>
         </div>
       </div>
     `;
@@ -461,7 +842,24 @@ class NoCornPopup {
     }, 10000);
   }
 
-  triggerPanicMode() {
+  async triggerPanicMode() {
+    // Log panic mode usage in backend if authenticated
+    if (this.isAuthenticated && this.backendConnection) {
+      try {
+        await this.backendConnection.logPanicMode();
+        const userData = await this.backendConnection.getUserData();
+        this.totalScore = userData.total_score;
+        await chrome.storage.local.set({ totalScore: this.totalScore });
+      } catch (error) {
+        console.error('Failed to log panic mode:', error);
+      }
+    } else {
+      // Award points locally
+      this.totalScore += 25;
+      await chrome.storage.local.set({ totalScore: this.totalScore });
+    }
+
+    this.updateDisplay();
     const modal = document.createElement('div');
     modal.className = 'modal';
     modal.style.display = 'block';
@@ -487,7 +885,7 @@ class NoCornPopup {
     
     modal.querySelector('#panic-close').addEventListener('click', () => {
       document.body.removeChild(modal);
-      this.showNotification('Great job using your panic button! 🎯', 'success');
+      this.showNotification('Great job using your panic button! (+25 points) 🎯', 'success');
     });
   }
 
@@ -624,3 +1022,6 @@ class NoCornPopup {
 document.addEventListener('DOMContentLoaded', () => {
   new NoCornPopup();
 });
+
+// Export for potential use in other modules
+export default NoCornPopup;

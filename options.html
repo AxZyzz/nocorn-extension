@@ -150,6 +150,16 @@
         </div>
 
         <div class="section">
+          <h2>🚫 Blocked Sites</h2>
+          <div class="blocked-sites-section">
+            <p>View and manage your blocked sites list:</p>
+            <div class="blocked-sites-list" id="blocked-sites-list">
+              <!-- Blocked sites will be populated here -->
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
           <h2>✅ Whitelist</h2>
           <div class="whitelist-section">
             <p>Add sites that should never be blocked, even during sessions:</p>
@@ -331,10 +341,33 @@
         </div>
 
         <div class="section">
+          <h2>👤 Account</h2>
+          <div class="account-section">
+            <div class="auth-status" id="auth-status-settings">
+              <p>Authentication Status: <span id="auth-status-text-settings">Checking...</span></p>
+            </div>
+            
+            <div class="auth-actions" id="auth-actions">
+              <button id="signin-btn-settings" class="btn btn-primary" style="display: none;">
+                🔐 Sign In / Sign Up
+              </button>
+              <button id="signout-btn-settings" class="btn btn-secondary" style="display: none;">
+                🚪 Sign Out
+              </button>
+            </div>
+            
+            <div class="user-info-settings" id="user-info-settings" style="display: none;">
+              <p><strong>Email:</strong> <span id="user-email-settings"></span></p>
+              <p><strong>Username:</strong> <span id="user-username-settings"></span></p>
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
           <h2>🔒 Privacy</h2>
           <div class="privacy-info">
             <h4>Your Privacy Matters</h4>
-            <p>NoCorn stores all data locally on your device. We do not collect, transmit, or store any personal information on external servers.</p>
+            <p>NoCorn can store data locally on your device or sync with our secure cloud backend when you're signed in.</p>
             
             <h4>What We Store:</h4>
             <ul>

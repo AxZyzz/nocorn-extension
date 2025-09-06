@@ -1,13 +1,28 @@
 // Background script for NoCorn extension
 class NoCornBackground {
   constructor() {
+    this.backendConnection = null;
+    this.isAuthenticated = false;
     this.init();
   }
 
-  init() {
+  async init() {
+    await this.initializeBackend();
     this.setupListeners();
     this.checkActiveSession();
     this.setupAlarms();
+  }
+
+  async initializeBackend() {
+    try {
+      // Skip backend initialization in service worker to avoid import issues
+      // Authentication will be handled in popup
+      console.log('⚠️ Background: Skipping backend initialization - will be handled in popup');
+      await chrome.storage.local.set({ needsAuthentication: true });
+    } catch (error) {
+      console.error('Background: Backend initialization failed:', error.message || error);
+      await chrome.storage.local.set({ needsAuthentication: true });
+    }
   }
 
   setupListeners() {
@@ -84,16 +99,18 @@ class NoCornBackground {
 
   async handleMessage(message, sender, sendResponse) {
     switch (message.action) {
+      case 'debug':
+        console.log('🔍 DEBUG:', message.message);
+        break;
+      case 'authenticationComplete':
+        this.handleAuthenticationComplete(message.user);
+        break;
       case 'sessionStarted':
-        await this.handleSessionStarted(message.session);
-        sendResponse({ success: true });
+        this.handleSessionStarted(message.session);
         break;
-        
       case 'emergencyDisable':
-        await this.handleEmergencyDisable(message.data);
-        sendResponse({ success: true });
+        this.handleEmergencyDisable(message.data);
         break;
-        
       case 'panicMode':
         await this.handlePanicMode();
         sendResponse({ success: true });
@@ -102,6 +119,11 @@ class NoCornBackground {
       case 'getBlockingStatus':
         const status = await this.getBlockingStatus(message.url);
         sendResponse(status);
+        break;
+
+      case 'authenticationComplete':
+        await this.handleAuthenticationComplete(message.user);
+        sendResponse({ success: true });
         break;
         
       default:
@@ -280,6 +302,17 @@ class NoCornBackground {
     }
     
     console.log('Session completed successfully');
+  }
+
+  async handleAuthenticationComplete(user) {
+    try {
+      // Clear the authentication flag
+      await chrome.storage.local.set({ needsAuthentication: false });
+      
+      console.log('✅ Authentication completed for user:', user.email);
+    } catch (error) {
+      console.error('Failed to handle authentication completion:', error);
+    }
   }
 
   async handleEmergencyDisable(data) {

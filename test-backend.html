@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NoCorn Backend Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: white;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        h1 { text-align: center; margin-bottom: 30px; }
+        .test-section {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 20px;
+            border-radius: 12px;
+            margin: 20px 0;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        button:hover { background: #45a049; }
+        button:disabled { background: #666; cursor: not-allowed; }
+        .status { 
+            padding: 10px; 
+            border-radius: 6px; 
+            margin: 10px 0; 
+            font-weight: 600;
+        }
+        .success { background: rgba(76, 175, 80, 0.2); border: 1px solid #4CAF50; }
+        .error { background: rgba(244, 67, 54, 0.2); border: 1px solid #f44336; }
+        .info { background: rgba(33, 150, 243, 0.2); border: 1px solid #2196F3; }
+        input {
+            padding: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            margin: 5px;
+        }
+        input::placeholder { color: rgba(255, 255, 255, 0.7); }
+        .data-display {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔌 NoCorn Backend Connection Test</h1>
+        
+        <div class="test-section">
+            <h2>1. Connection Test</h2>
+            <button onclick="testConnection()">Test Backend Connection</button>
+            <div id="connection-status"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>2. User Initialization</h2>
+            <button onclick="initializeUser()">Initialize User</button>
+            <div id="user-status"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>3. Add Test Site</h2>
+            <input type="text" id="test-site" placeholder="Enter site (e.g., example.com)" value="example.com">
+            <button onclick="addTestSite()">Add Site</button>
+            <div id="site-status"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>4. Get User Data</h2>
+            <button onclick="getUserData()">Fetch User Data</button>
+            <div id="user-data"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>5. Update Score</h2>
+            <input type="number" id="points" placeholder="Points to add" value="50">
+            <button onclick="updateScore()">Update Score</button>
+            <div id="score-status"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>6. Get Blocked Sites</h2>
+            <button onclick="getBlockedSites()">Get All Blocked Sites</button>
+            <div id="sites-data"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import backendConnection from './src/backend/BackendConnection.js';
+
+        let isInitialized = false;
+
+        window.testConnection = async function() {
+            const statusDiv = document.getElementById('connection-status');
+            statusDiv.innerHTML = '<div class="status info">Testing connection...</div>';
+            
+            try {
+                const result = await backendConnection.testConnection();
+                if (result) {
+                    statusDiv.innerHTML = '<div class="status success">✅ Backend connection successful!</div>';
+                } else {
+                    statusDiv.innerHTML = '<div class="status error">❌ Backend connection failed</div>';
+                }
+            } catch (error) {
+                statusDiv.innerHTML = `<div class="status error">❌ Connection error: ${error.message}</div>`;
+            }
+        }
+
+        window.initializeUser = async function() {
+            const statusDiv = document.getElementById('user-status');
+            statusDiv.innerHTML = '<div class="status info">Initializing user...</div>';
+            
+            try {
+                const result = await backendConnection.initialize();
+                if (result.success) {
+                    isInitialized = true;
+                    statusDiv.innerHTML = `<div class="status success">✅ User initialized! ID: ${result.userId}</div>`;
+                } else {
+                    statusDiv.innerHTML = `<div class="status error">❌ User initialization failed: ${result.error}</div>`;
+                }
+            } catch (error) {
+                statusDiv.innerHTML = `<div class="status error">❌ Initialization error: ${error.message}</div>`;
+            }
+        }
+
+        window.addTestSite = async function() {
+            const statusDiv = document.getElementById('site-status');
+            const site = document.getElementById('test-site').value.trim();
+            
+            if (!site) {
+                statusDiv.innerHTML = '<div class="status error">❌ Please enter a site</div>';
+                return;
+            }
+
+            statusDiv.innerHTML = '<div class="status info">Adding site...</div>';
+            
+            try {
+                const result = await backendConnection.addBlockedSite(site);
+                statusDiv.innerHTML = `<div class="status success">✅ Site added successfully!</div>`;
+            } catch (error) {
+                statusDiv.innerHTML = `<div class="status error">❌ Failed to add site: ${error.message}</div>`;
+            }
+        }
+
+        window.getUserData = async function() {
+            const dataDiv = document.getElementById('user-data');
+            dataDiv.innerHTML = '<div class="status info">Fetching user data...</div>';
+            
+            try {
+                const userData = await backendConnection.getUserData();
+                dataDiv.innerHTML = `
+                    <div class="status success">✅ User data retrieved!</div>
+                    <div class="data-display">${JSON.stringify(userData, null, 2)}</div>
+                `;
+            } catch (error) {
+                dataDiv.innerHTML = `<div class="status error">❌ Failed to get user data: ${error.message}</div>`;
+            }
+        }
+
+        window.updateScore = async function() {
+            const statusDiv = document.getElementById('score-status');
+            const points = parseInt(document.getElementById('points').value) || 0;
+            
+            statusDiv.innerHTML = '<div class="status info">Updating score...</div>';
+            
+            try {
+                const result = await backendConnection.updateScore(points, 'test_update');
+                statusDiv.innerHTML = `
+                    <div class="status success">✅ Score updated!</div>
+                    <div class="data-display">New Score: ${result.total_score}</div>
+                `;
+            } catch (error) {
+                statusDiv.innerHTML = `<div class="status error">❌ Failed to update score: ${error.message}</div>`;
+            }
+        }
+
+        window.getBlockedSites = async function() {
+            const dataDiv = document.getElementById('sites-data');
+            dataDiv.innerHTML = '<div class="status info">Fetching blocked sites...</div>';
+            
+            try {
+                const sites = await backendConnection.getBlockedSites();
+                dataDiv.innerHTML = `
+                    <div class="status success">✅ Blocked sites retrieved! (${sites.length} sites)</div>
+                    <div class="data-display">${JSON.stringify(sites, null, 2)}</div>
+                `;
+            } catch (error) {
+                dataDiv.innerHTML = `<div class="status error">❌ Failed to get sites: ${error.message}</div>`;
+            }
+        }
+
+        // Auto-test connection on load
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(testConnection, 1000);
+        });
+    </script>
+</body>
+</html>

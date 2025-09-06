@@ -9,14 +9,38 @@
 <body>
   <div class="container">
     <!-- Header -->
-    <header class="header">
+    <header class="header" id="main-header">
       <div class="logo">
         <div class="logo-icon">🛡️</div>
         <h1>NoCorn</h1>
       </div>
+      <div class="auth-status" id="auth-status">
+        <div class="auth-indicator" id="auth-indicator"></div>
+        <span id="auth-status-text">Connecting...</span>
+      </div>
       <button id="panic-btn" class="panic-button" title="Emergency Support">🆘</button>
     </header>
 
+    <!-- User Profile Section (shown when authenticated) -->
+    <div class="user-profile" id="user-profile" style="display: none;">
+      <div class="user-info">
+        <div class="user-avatar" id="user-avatar">U</div>
+        <div class="user-email" id="user-email">user@example.com</div>
+      </div>
+      <button class="sign-out-btn" id="sign-out-btn">Sign Out</button>
+    </div>
+
+    <!-- Unauthenticated Content -->
+    <div class="unauthenticated-content" id="unauthenticated-content" style="display: none;">
+      <h3>Welcome to NoCorn!</h3>
+      <p>Sign in to sync your progress across devices and unlock advanced features.</p>
+      <button class="auth-cta-btn" id="show-auth-btn">Sign In / Sign Up</button>
+      <button class="continue-offline-btn" id="continue-offline-btn">Continue Offline</button>
+    </div>
+
+    <!-- Main Content (shown when authenticated or offline) -->
+    <div class="main-content" id="main-content">
+    
     <!-- Status Display -->
     <div class="status-section">
       <div class="streak-display">
@@ -83,6 +107,8 @@
       <button class="nav-btn" id="insights-btn">📊 Insights</button>
       <button class="nav-btn" id="settings-btn">⚙️ Settings</button>
     </nav>
+    
+    </div> <!-- End main-content -->
   </div>
 
   <!-- Modals -->
@@ -121,6 +147,6 @@
     </div>
   </div>
 
-  <script src="scripts/popup.js"></script>
+  <script type="module" src="scripts/popup.js"></script>
 </body>
 </html>

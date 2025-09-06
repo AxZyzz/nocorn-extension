@@ -9,7 +9,8 @@
     "declarativeNetRequest",
     "activeTab",
     "notifications",
-    "alarms"
+    "alarms",
+    "webNavigation"
   ],
   
   "host_permissions": [
