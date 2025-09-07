@@ -225,39 +225,11 @@ class NoCornOptions {
     const avatarLetter = user.email ? user.email.charAt(0).toUpperCase() : 'U';
     document.getElementById('user-avatar-settings').textContent = avatarLetter;
     
-    // Load and display current points and streak - sync with backend first
+    // Load and display current points and streak from storage
     try {
-      let totalScore = 0;
-      let currentStreak = 0;
-      
-      // Try to get fresh data from backend first
-      try {
-        const { default: backendConnection } = await import('../src/backend/BackendConnection.js');
-        if (backendConnection.isAuthenticated()) {
-          const userData = await backendConnection.getUserData();
-          totalScore = userData.total_score || 0;
-          currentStreak = userData.current_streak || 0;
-          
-          // Update local storage with fresh backend data
-          await chrome.storage.local.set({ 
-            totalScore: totalScore,
-            currentStreak: currentStreak
-          });
-          
-          console.log('✅ User stats synced from backend');
-        } else {
-          // Fallback to local storage
-          const data = await chrome.storage.local.get(['totalScore', 'currentStreak']);
-          totalScore = data.totalScore || 0;
-          currentStreak = data.currentStreak || 0;
-        }
-      } catch (backendError) {
-        console.error('Backend sync failed, using local storage:', backendError);
-        // Fallback to local storage
-        const data = await chrome.storage.local.get(['totalScore', 'currentStreak']);
-        totalScore = data.totalScore || 0;
-        currentStreak = data.currentStreak || 0;
-      }
+      const data = await chrome.storage.local.get(['totalScore', 'currentStreak']);
+      const totalScore = data.totalScore || 0;
+      const currentStreak = data.currentStreak || 0;
       
       document.getElementById('user-points-settings').textContent = totalScore.toLocaleString();
       document.getElementById('user-streak-settings').textContent = currentStreak;
@@ -408,47 +380,26 @@ class NoCornOptions {
   async removeBlockedSite(site) {
     if (confirm(`Are you sure you want to remove ${site} from your blocked list?`)) {
       try {
-        // Try to remove from backend first
-        const { needsAuthentication } = await chrome.storage.local.get(['needsAuthentication']);
-        
-        if (!needsAuthentication) {
-          try {
-            const { default: backendConnection } = await import('../src/backend/BackendConnection.js');
-            if (!backendConnection.isInitialized) {
-              await backendConnection.initialize();
-            }
-            
-            if (backendConnection.isAuthenticated()) {
-              await backendConnection.removeBlockedSite(site);
-              
-              // Sync with backend
-              const backendSites = await backendConnection.getBlockedSites();
-              this.blockedSites = backendSites.map(s => s.site) || [];
-              await chrome.storage.local.set({ blockedSites: this.blockedSites });
-              
-              console.log('✅ Site removed via backend');
-            } else {
-              // Fallback to local storage
-              this.blockedSites = this.blockedSites.filter(s => s !== site);
-              await chrome.storage.local.set({ blockedSites: this.blockedSites });
-            }
-          } catch (backendError) {
-            console.error('Backend remove failed, using local storage:', backendError);
-            // Fallback to local storage
-            this.blockedSites = this.blockedSites.filter(s => s !== site);
-            await chrome.storage.local.set({ blockedSites: this.blockedSites });
-          }
-        } else {
-          // Use local storage only
-          this.blockedSites = this.blockedSites.filter(s => s !== site);
-          await chrome.storage.local.set({ blockedSites: this.blockedSites });
+        // Optimistically update the UI for a responsive feel
+        this.blockedSites = this.blockedSites.filter(s => s !== site);
+        this.updateBlockedSitesDisplay();
+
+        // Update local storage to persist the change immediately
+        await chrome.storage.local.set({ blockedSites: this.blockedSites });
+
+        // Try to sync the deletion with the backend if the user is authenticated
+        const { default: authService } = await import('../src/auth/AuthService.js');
+        if (authService.isAuthenticated()) {
+          const { default: backendConnection } = await import('../src/backend/BackendConnection.js');
+          await backendConnection.removeBlockedSite(site);
         }
         
-        this.updateBlockedSitesDisplay();
         this.showNotification(`Removed ${site} from blocked list`, 'info');
       } catch (error) {
         console.error('Failed to remove site:', error);
-        this.showNotification('Failed to remove site', 'error');
+        this.showNotification('Failed to remove site. It may reappear on the next sync.', 'error');
+        // If the backend fails, revert the change by reloading the list from the source of truth
+        await this.loadBlockedSites();
       }
     }
   }
@@ -687,8 +638,7 @@ class NoCornOptions {
       }
 
       const confirmed = confirm(
-        'This will replace all your current data with the imported data. ' +
-        'Are you sure you want to continue? Consider exporting your current data first.'
+        'This will replace all your current data with the imported data. '
       );
 
       if (!confirmed) return;
@@ -709,8 +659,7 @@ class NoCornOptions {
 
   async resetStatistics() {
     const confirmed = confirm(
-      'This will reset all your statistics (streaks, scores, achievements) but keep your settings. ' +
-      'This action cannot be undone. Are you sure?'
+      'This will reset all your statistics (streaks, scores, achievements) but keep your settings. '
     );
 
     if (!confirmed) return;
@@ -733,8 +682,7 @@ class NoCornOptions {
 
   async resetEverything() {
     const confirmed = confirm(
-      'This will completely reset NoCorn, deleting ALL data including settings, statistics, and configurations. ' +
-      'This action cannot be undone. Are you absolutely sure?'
+      'This will completely reset NoCorn, deleting ALL data including settings, statistics, and configurations. '
     );
 
     if (!confirmed) return;
@@ -760,7 +708,7 @@ class NoCornOptions {
   }
 
   isValidEmail(email) {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const emailRegex = /^[^\\s@]+@[^\\s@]+\\[^\\s@]+$/;
     return emailRegex.test(email);
   }
 
