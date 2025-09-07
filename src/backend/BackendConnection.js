@@ -80,15 +80,35 @@ class BackendConnection {
 
     if (error) throw error
 
-    // Log the transaction
-    await this.supabase
+    // Generate transaction hash to prevent duplicates
+    const timestamp = new Date().toISOString()
+    const { data: hashData, error: hashError } = await this.supabase
+      .rpc('generate_transaction_hash', {
+        p_user_id: currentUser.id,
+        p_action_type: action,
+        p_points: points,
+        p_timestamp: timestamp
+      })
+
+    if (hashError) {
+      console.error('Failed to generate transaction hash:', hashError)
+    }
+
+    // Log the transaction with hash to prevent duplicates
+    const { error: transactionError } = await this.supabase
       .from('user_point_transactions')
       .insert({
         user_id: currentUser.id,
         action_type: action,
         points_awarded: points,
-        transaction_data: { action, timestamp: new Date().toISOString() }
+        transaction_data: { action, timestamp },
+        transaction_hash: hashData || `${currentUser.id}_${action}_${Date.now()}`
       })
+
+    if (transactionError) {
+      console.error('Failed to log point transaction:', transactionError)
+      // Don't throw error here as the score update succeeded
+    }
 
     console.log(`✅ Score updated: ${userData.total_score} → ${newScore} (${points > 0 ? '+' : ''}${points})`)
     return data
@@ -143,6 +163,28 @@ class BackendConnection {
       .order('added_at', { ascending: false })
 
     if (error) throw error
+    return data
+  }
+
+  // Remove blocked site
+  async removeBlockedSite(site) {
+    if (!this.isAuthenticated()) {
+      throw new Error('User not authenticated')
+    }
+
+    const currentUser = this.getCurrentUser()
+    const cleanSite = site.replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0]
+
+    const { data, error } = await this.supabase
+      .from('user_blocked_sites')
+      .update({ is_active: false })
+      .eq('user_id', currentUser.id)
+      .eq('site', cleanSite)
+      .select()
+
+    if (error) throw error
+
+    console.log('✅ Site removed from block list:', cleanSite)
     return data
   }
 
@@ -213,6 +255,52 @@ class BackendConnection {
     await this.updateScore(25, 'panic_mode')
     
     console.log('✅ Panic mode logged')
+  }
+
+  // Search for users by email
+  async searchUsers(query) {
+    if (!this.isAuthenticated()) {
+      throw new Error('User not authenticated');
+    }
+
+    if (!query || query.length < 3) {
+      return [];
+    }
+
+    const { data, error } = await this.supabase.rpc('search_users', {
+      search_term: query
+    });
+
+    if (error) {
+      console.error('Error searching for users:', error);
+      throw new Error('Failed to search for users.');
+    }
+
+    // Exclude the current user from the search results
+    const currentUser = this.getCurrentUser();
+    return data.filter(user => user.user_id !== currentUser.id);
+  }
+
+  // Remove blocked site (soft delete)
+  async removeBlockedSite(site) {
+    if (!this.isAuthenticated()) {
+      throw new Error('User not authenticated');
+    }
+
+    const currentUser = this.getCurrentUser();
+    const { data, error } = await this.supabase
+      .from('user_blocked_sites')
+      .update({ is_active: false })
+      .eq('user_id', currentUser.id)
+      .eq('site', site);
+
+    if (error) {
+      console.error('Failed to remove blocked site from backend:', error);
+      throw new Error('Failed to remove site.');
+    }
+
+    console.log('✅ Site removed from backend:', site);
+    return data;
   }
 }
 

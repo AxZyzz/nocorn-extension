@@ -208,7 +208,8 @@
               
               <div class="form-group">
                 <label for="partner-email">Partner Email:</label>
-                <input type="email" id="partner-email" placeholder="Enter email address">
+                <input type="email" id="partner-email" placeholder="Enter email address" autocomplete="off">
+                <div id="partner-search-results" class="search-results"></div>
               </div>
               
               <div class="form-group">
@@ -357,8 +358,16 @@
             </div>
             
             <div class="user-info-settings" id="user-info-settings" style="display: none;">
-              <p><strong>Email:</strong> <span id="user-email-settings"></span></p>
-              <p><strong>Username:</strong> <span id="user-username-settings"></span></p>
+              <div class="user-profile-card">
+                <div class="user-avatar-settings" id="user-avatar-settings">U</div>
+                <div class="user-details">
+                  <p><strong>Email:</strong> <span id="user-email-settings"></span></p>
+                  <p><strong>User ID:</strong> <span id="user-id-settings"></span></p>
+                  <p><strong>Member Since:</strong> <span id="user-created-settings"></span></p>
+                  <p><strong>Total Points:</strong> <span id="user-points-settings">0</span></p>
+                  <p><strong>Current Streak:</strong> <span id="user-streak-settings">0</span> days</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>

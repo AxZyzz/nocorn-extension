@@ -46,7 +46,7 @@
   
   "web_accessible_resources": [
     {
-      "resources": ["blocked.html", "motivational.html", "panic.html"],
+      "resources": ["blocked.html"],
       "matches": ["<all_urls>"]
     }
   ]

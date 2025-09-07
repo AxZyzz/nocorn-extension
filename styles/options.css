@@ -15,8 +15,9 @@ body {
   max-width: 1000px;
   margin: 0 auto;
   background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   min-height: 100vh;
-  box-shadow: 0 0 20px rgba(0,0,0,0.1);
 }
 
 /* Header */
@@ -334,6 +335,7 @@ textarea {
 
 .form-group {
   margin-bottom: 20px;
+  position: relative;
 }
 
 .form-group label {
@@ -364,6 +366,31 @@ textarea {
 .partner-info p {
   margin-bottom: 8px;
   color: #155724;
+}
+
+/* Search Results */
+.search-results {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  max-height: 150px;
+  overflow-y: auto;
+  z-index: 10;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.search-result-item {
+  padding: 10px;
+  cursor: pointer;
+}
+
+.search-result-item:hover {
+  background: #f0f0f0;
 }
 
 /* Data Overview */
@@ -451,6 +478,52 @@ textarea {
 .privacy-info li {
   color: #666;
   margin: 4px 0;
+}
+
+/* User Profile Card */
+.user-profile-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-radius: 12px;
+  border: 1px solid #dee2e6;
+  margin-top: 16px;
+}
+
+.user-avatar-settings {
+  width: 60px;
+  height: 60px;
+  background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  font-weight: bold;
+  flex-shrink: 0;
+}
+
+.user-details {
+  flex: 1;
+}
+
+.user-details p {
+  margin: 8px 0;
+  font-size: 14px;
+}
+
+.user-details strong {
+  color: #495057;
+  font-weight: 600;
+  min-width: 120px;
+  display: inline-block;
+}
+
+.user-details span {
+  color: #6c757d;
 }
 
 /* Responsive Design */

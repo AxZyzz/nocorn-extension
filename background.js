@@ -120,11 +120,6 @@ class NoCornBackground {
         const status = await this.getBlockingStatus(message.url);
         sendResponse(status);
         break;
-
-      case 'authenticationComplete':
-        await this.handleAuthenticationComplete(message.user);
-        sendResponse({ success: true });
-        break;
         
       default:
         sendResponse({ error: 'Unknown action' });

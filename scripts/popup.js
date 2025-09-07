@@ -11,10 +11,27 @@ class NoCornPopup {
     this.authUI = authUI;
     this.isAuthenticated = false;
     this.offlineMode = false;
+    
+    // Initialize all data properties to prevent undefined errors
+    this.currentStreak = 0;
+    this.totalScore = 0;
+    this.blockedSites = [];
+    this.activeSession = null;
+    this.stats = {
+      totalCleanDays: 0,
+      bestStreak: 0,
+      sessionsCompleted: 0,
+      progressHistory: []
+    };
+    this.achievements = {};
+    
+    // Initialize immediately since we're already in DOMContentLoaded
     this.init();
   }
 
   async init() {
+    console.log('🚀 Initializing NoCorn Popup...');
+    
     // Initialize authentication service first
     await this.authService.initialize();
     
@@ -23,43 +40,84 @@ class NoCornPopup {
       console.log('User already authenticated, proceeding normally');
       this.isAuthenticated = true;
       this.showAuthenticatedUI();
+      await this.initializeBackend();
     } else {
-      // Check if first-time authentication is needed
-      const { needsAuthentication } = await chrome.storage.local.get(['needsAuthentication']);
+      // Check if this is first time use
+      const { hasSeenWelcome } = await chrome.storage.local.get(['hasSeenWelcome']);
       
-      if (needsAuthentication) {
-        // Show first-time signin modal
-        firstTimeSignin.show((user) => {
-          this.onFirstTimeSigninComplete(user);
-        });
+      if (!hasSeenWelcome) {
+        // Show first-time signin for new users
+        this.showFirstTimeSignin();
         return;
       } else {
-        // Show unauthenticated UI
+        // Show unauthenticated UI with signin option
         this.showUnauthenticatedUI();
       }
-    }
-    
-    // Initialize backend connection if authenticated
-    if (this.isAuthenticated) {
-      await this.initializeAuth();
-    }
-    
-    // Wait for DOM to be ready before setting up event listeners
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', () => {
-        this.setupEventListeners();
-        this.setupAuthEventListeners();
-        this.setupModals();
-      });
-    } else {
-      this.setupEventListeners();
-      this.setupAuthEventListeners();
-      this.setupModals();
     }
     
     // Load data and update display
     await this.loadData();
     this.updateDisplay();
+    
+    // Setup event listeners
+    this.setupEventListeners();
+    this.setupAuthEventListeners();
+    this.setupModals();
+    
+    console.log('✅ NoCorn Popup initialized successfully');
+  }
+
+  async initializeBackend() {
+    try {
+      // Try to connect to backend
+      const { default: backendConnection } = await import('../src/backend/BackendConnection.js');
+      const result = await backendConnection.initialize();
+      
+      if (result.success) {
+        this.backendConnection = backendConnection;
+        this.backendEnabled = true;
+        console.log('✅ Backend connection established');
+        
+        // Sync user data from backend
+        await this.syncUserDataFromBackend();
+      } else {
+        console.log('❌ Backend connection failed, using local storage');
+        this.backendEnabled = false;
+      }
+    } catch (error) {
+      console.error('Backend initialization failed:', error);
+      this.backendEnabled = false;
+    }
+  }
+
+  async syncUserDataFromBackend() {
+    if (!this.backendConnection) return;
+    
+    try {
+      // Get user data from backend
+      const userData = await this.backendConnection.getUserData();
+      if (userData) {
+        this.totalScore = userData.total_score || 0;
+        this.currentStreak = userData.current_streak || 0;
+        
+        // Get blocked sites
+        const backendSites = await this.backendConnection.getBlockedSites();
+        if (backendSites && backendSites.length > 0) {
+          this.blockedSites = backendSites.map(s => s.site);
+        }
+        
+        // Save to local storage as backup
+        await chrome.storage.local.set({
+          totalScore: this.totalScore,
+          currentStreak: this.currentStreak,
+          blockedSites: this.blockedSites
+        });
+        
+        console.log('✅ User data synced from backend');
+      }
+    } catch (error) {
+      console.error('Failed to sync user data from backend:', error);
+    }
   }
 
   async initializeAuth() {
@@ -86,26 +144,39 @@ class NoCornPopup {
       }
     } catch (error) {
       console.error('Auth initialization failed:', error);
-      this.showOfflineMode();
+      this.setupAuthEventListeners();
     }
   }
 
   setupAuthEventListeners() {
+    console.log('Setting up auth event listeners...');
+    
     // Sign out button
     const signOutBtn = document.getElementById('sign-out-btn');
     if (signOutBtn) {
-      signOutBtn.addEventListener('click', async () => {
-        await this.authService.signOut();
-        // Clear needsAuthentication flag and show unauthenticated UI
-        await chrome.storage.local.remove(['needsAuthentication']);
-        this.isAuthenticated = false;
-        this.showUnauthenticatedUI();
+      console.log('Sign out button found, adding listener');
+      signOutBtn.addEventListener('click', async (e) => {
+        console.log('Sign out button clicked');
+        e.preventDefault();
+        try {
+          await this.authService.signOut();
+          this.isAuthenticated = false;
+          this.backendConnection = null;
+          this.backendEnabled = false;
+          this.showUnauthenticatedUI();
+          this.showNotification('Signed out successfully', 'info');
+          console.log('✅ Sign out completed');
+        } catch (error) {
+          console.error('Sign out failed:', error);
+          this.showNotification('Sign out failed', 'error');
+        }
       });
     }
 
     // Show auth button
     const showAuthBtn = document.getElementById('show-auth-btn');
     if (showAuthBtn) {
+      console.log('Show auth button found, adding listener');
       showAuthBtn.addEventListener('click', () => {
         this.authUI.show();
       });
@@ -268,25 +339,32 @@ class NoCornPopup {
         await this.loadLocalData();
       }
     } else {
-      // Load from local storage
+      // Load from local storage when not authenticated
       await this.loadLocalData();
     }
+
+    console.log('📊 Data loaded:', {
+      blockedSites: this.blockedSites.length,
+      activeSession: !!this.activeSession,
+      totalScore: this.totalScore,
+      currentStreak: this.currentStreak
+    });
   }
 
   async loadLocalData() {
     const data = await chrome.storage.local.get([
-      'currentStreak',
-      'totalScore',
       'blockedSites',
       'activeSession',
+      'totalScore',
+      'currentStreak',
       'achievements',
       'stats'
     ]);
 
-    this.currentStreak = data.currentStreak || 0;
-    this.totalScore = data.totalScore || 0;
     this.blockedSites = data.blockedSites || [];
     this.activeSession = data.activeSession || null;
+    this.totalScore = data.totalScore || 0;
+    this.currentStreak = data.currentStreak || 0;
     this.achievements = data.achievements || {};
     this.stats = data.stats || {
       totalCleanDays: 0,
@@ -384,59 +462,169 @@ class NoCornPopup {
     this.updateDisplay();
   }
 
+  showFirstTimeSignin() {
+    firstTimeSignin.show((user) => {
+      this.onFirstTimeSigninComplete(user);
+    });
+  }
+
   async onFirstTimeSigninComplete(user) {
     try {
-      // Notify background script that authentication is complete
-      await chrome.runtime.sendMessage({ 
-        action: 'authenticationComplete', 
-        user: user 
-      });
+      // Mark that user has seen welcome
+      await chrome.storage.local.set({ hasSeenWelcome: true });
       
-      // Initialize the popup normally
-      await this.initializeAuth();
+      // Set authenticated state
+      this.isAuthenticated = true;
       
-      // Wait for DOM to be ready before setting up event listeners
-      if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => {
-          this.setupEventListeners();
-          this.setupAuthEventListeners();
-          this.setupModals();
-        });
-      } else {
-        this.setupEventListeners();
-        this.setupAuthEventListeners();
-        this.setupModals();
-      }
+      // Initialize backend connection
+      await this.initializeBackend();
       
+      // Show authenticated UI
+      this.showAuthenticatedUI();
+      
+      // Load data and update display
       await this.loadData();
       this.updateDisplay();
       
+      // Setup event listeners after authentication
+      this.setupEventListeners();
+      this.setupAuthEventListeners();
+      this.setupModals();
+      
       this.showNotification(`Welcome to NoCorn, ${user.email}! 🎉`, 'success');
+      console.log('✅ First-time signin completed');
     } catch (error) {
       console.error('Failed to complete first-time signin:', error);
       this.showNotification('Authentication completed, but there was an issue. Please refresh.', 'warning');
     }
   }
 
+  async onAuthSuccess(user) {
+    console.log('🎉 Authentication successful:', user.email);
+    this.isAuthenticated = true;
+    
+    // Initialize backend connection
+    await this.initializeBackend();
+    
+    // Show authenticated UI
+    this.showAuthenticatedUI();
+    
+    // Reload and update display
+    await this.loadData();
+    this.updateDisplay();
+    
+    // Setup event listeners after authentication
+    this.setupEventListeners();
+    this.setupAuthEventListeners();
+    this.setupModals();
+    
+    this.showNotification(`Welcome back, ${user.email}!`, 'success');
+  }
+
+  onSignOut() {
+    console.log('👋 User signed out');
+    this.isAuthenticated = false;
+    this.backendConnection = null;
+    this.backendEnabled = false;
+    this.showUnauthenticatedUI();
+  }
+
+  showAuthenticatedUI() {
+    const userProfile = document.getElementById('user-profile');
+    const unauthContent = document.getElementById('unauthenticated-content');
+    const mainContent = document.getElementById('main-content');
+    const authStatusText = document.getElementById('auth-status-text');
+    const authIndicator = document.getElementById('auth-indicator');
+    
+    if (userProfile) userProfile.style.display = 'flex';
+    if (unauthContent) unauthContent.style.display = 'none';
+    if (mainContent) mainContent.style.display = 'block';
+    if (authStatusText) authStatusText.textContent = 'Signed In';
+    if (authIndicator) {
+      authIndicator.style.backgroundColor = '#4CAF50';
+      authIndicator.title = 'Authenticated';
+    }
+    
+    // Update user info if available
+    if (this.authService.getCurrentUser()) {
+      const userEmail = document.getElementById('user-email');
+      const userAvatar = document.getElementById('user-avatar');
+      const user = this.authService.getCurrentUser();
+      
+      if (userEmail) userEmail.textContent = user.email;
+      if (userAvatar) userAvatar.textContent = user.email.charAt(0).toUpperCase();
+    }
+  }
+
+  showUnauthenticatedUI() {
+    const userProfile = document.getElementById('user-profile');
+    const unauthContent = document.getElementById('unauthenticated-content');
+    const mainContent = document.getElementById('main-content');
+    const authStatusText = document.getElementById('auth-status-text');
+    const authIndicator = document.getElementById('auth-indicator');
+    
+    if (userProfile) userProfile.style.display = 'none';
+    if (unauthContent) unauthContent.style.display = 'block';
+    if (mainContent) mainContent.style.display = 'block';
+    if (authStatusText) authStatusText.textContent = 'Not Signed In';
+    if (authIndicator) {
+      authIndicator.style.backgroundColor = '#ff9800';
+      authIndicator.title = 'Not authenticated';
+    }
+  }
+
+  showOfflineMode() {
+    const userProfile = document.getElementById('user-profile');
+    const unauthContent = document.getElementById('unauthenticated-content');
+    const mainContent = document.getElementById('main-content');
+    const authStatusText = document.getElementById('auth-status-text');
+    const authIndicator = document.getElementById('auth-indicator');
+    
+    if (userProfile) userProfile.style.display = 'none';
+    if (unauthContent) unauthContent.style.display = 'none';
+    if (mainContent) mainContent.style.display = 'block';
+    if (authStatusText) authStatusText.textContent = 'Offline Mode';
+    if (authIndicator) {
+      authIndicator.style.backgroundColor = '#666';
+      authIndicator.title = 'Offline mode';
+    }
+    
+    this.offlineMode = true;
+    this.showNotification('Running in offline mode', 'info');
+  }
+
   updateDisplay() {
-    // Update streak and stats
-    document.getElementById('current-streak').textContent = this.currentStreak;
-    document.getElementById('total-score').textContent = this.totalScore;
-    document.getElementById('sites-blocked').textContent = this.blockedSites.length;
+    console.log('📊 Updating display...');
+    
+    // Update streak and stats with null checks
+    const streakEl = document.getElementById('current-streak');
+    const scoreEl = document.getElementById('total-score');
+    const sitesEl = document.getElementById('sites-blocked');
+    
+    if (streakEl) streakEl.textContent = this.currentStreak;
+    if (scoreEl) scoreEl.textContent = this.totalScore;
+    if (sitesEl) sitesEl.textContent = this.blockedSites.length;
 
-    // Update block status
+    // Show main content and hide auth sections for testing
+    const mainContent = document.getElementById('main-content');
+    const userProfile = document.getElementById('user-profile');
+    const unauthContent = document.getElementById('unauthenticated-content');
+    
+    if (mainContent) mainContent.style.display = 'block';
+    if (userProfile) userProfile.style.display = 'none';
+    if (unauthContent) unauthContent.style.display = 'none';
+
+    // Update block status and sites list
     this.updateBlockStatus();
-
-    // Update sites list
     this.updateSitesList();
-
-    // Check for new achievements
-    this.checkAchievements();
+    
+    console.log('✅ Display updated successfully');
   }
 
   updateBlockStatus() {
     const blockStatus = document.getElementById('block-status');
     const sessionControls = document.getElementById('session-controls');
+    
 
     if (this.activeSession) {
       const now = Date.now();
@@ -486,26 +674,35 @@ class NoCornPopup {
     sitesList.innerHTML = this.blockedSites.map(site => `
       <div class="site-item">
         <span class="site-url">${site}</span>
-        <button class="remove-site" data-site="${site}">Remove</button>
       </div>
     `).join('');
-
-    // Add remove listeners
-    sitesList.querySelectorAll('.remove-site').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        this.removeSite(e.target.dataset.site);
-      });
-    });
   }
 
   async addSite() {
+    console.log('🔗 Adding site...');
+    
     const input = document.getElementById('new-site');
+    if (!input) {
+      console.error('New site input not found');
+      this.showNotification('Site input not found', 'error');
+      return;
+    }
+
     const site = input.value.trim().toLowerCase();
     
-    if (!site) return;
+    if (!site) {
+      this.showNotification('Please enter a website URL', 'warning');
+      return;
+    }
 
-    // Clean up the URL
-    const cleanSite = site.replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0];
+    // Clean up the URL - remove protocol, www, and paths
+    let cleanSite = site.replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0];
+    
+    // Basic domain validation
+    if (!cleanSite.includes('.') || cleanSite.length < 3) {
+      this.showNotification('Please enter a valid domain (e.g., example.com)', 'warning');
+      return;
+    }
     
     if (this.blockedSites.includes(cleanSite)) {
       this.showNotification('Site already in your block list', 'warning');
@@ -514,22 +711,37 @@ class NoCornPopup {
 
     try {
       if (this.isAuthenticated && this.backendConnection) {
-        // Use backend to add site (includes validation and points)
-        await this.backendConnection.addBlockedSite(cleanSite);
-        
-        // Sync with local storage
-        const userData = await this.backendConnection.getUserData();
-        this.totalScore = userData.total_score;
-        await chrome.storage.local.set({ totalScore: this.totalScore });
-        
-        // Update local sites list
-        const backendSites = await this.backendConnection.getBlockedSites();
-        this.blockedSites = backendSites.map(s => s.site);
-        await chrome.storage.local.set({ blockedSites: this.blockedSites });
-        
-        console.log('✅ Site added via backend');
+        try {
+          // Use backend to add site (includes validation and points)
+          await this.backendConnection.addBlockedSite(cleanSite);
+          
+          // Sync with local storage
+          const userData = await this.backendConnection.getUserData();
+          this.totalScore = userData.total_score || this.totalScore;
+          await chrome.storage.local.set({ totalScore: this.totalScore });
+          
+          // Update local sites list
+          const backendSites = await this.backendConnection.getBlockedSites();
+          this.blockedSites = backendSites.map(s => s.site) || [];
+          await chrome.storage.local.set({ blockedSites: this.blockedSites });
+          
+          console.log('✅ Site added via backend');
+        } catch (backendError) {
+          console.error('Backend add site failed, using local storage:', backendError);
+          // Fallback to local storage - but don't double-award points
+          this.blockedSites.push(cleanSite);
+          await chrome.storage.local.set({ blockedSites: this.blockedSites });
+          
+          // Only award points locally if backend completely failed
+          if (!this.backendConnection.isAuthenticated()) {
+            this.totalScore += 10; // Points for adding a site
+            await chrome.storage.local.set({ totalScore: this.totalScore });
+          }
+          
+          console.log('✅ Site added locally (backend fallback)');
+        }
       } else {
-        // Fallback to local storage
+        // Use local storage only
         this.blockedSites.push(cleanSite);
         await chrome.storage.local.set({ blockedSites: this.blockedSites });
         
@@ -543,20 +755,25 @@ class NoCornPopup {
       this.updateDisplay();
       this.showNotification(`Added ${cleanSite} to block list (+10 points)`, 'success');
       
+      // If there's an active session, update blocking rules immediately
+      if (this.activeSession) {
+        this.activeSession.blockedSites = [...this.blockedSites];
+        await chrome.storage.local.set({ activeSession: this.activeSession });
+        await this.updateBlockingRules();
+        console.log('✅ Updated blocking rules for active session');
+      }
+      
     } catch (error) {
       console.error('Failed to add site:', error);
       this.showNotification(error.message || 'Failed to add site', 'error');
     }
   }
 
-  async removeSite(site) {
-    this.blockedSites = this.blockedSites.filter(s => s !== site);
-    await chrome.storage.local.set({ blockedSites: this.blockedSites });
-    this.updateDisplay();
-    this.showNotification(`Removed ${site} from block list`, 'info');
-  }
+  
 
   async startBlockSession() {
+    console.log('🚀 Starting block session...');
+    
     if (this.blockedSites.length === 0) {
       this.showNotification('Add at least one site to block', 'warning');
       return;
@@ -565,8 +782,18 @@ class NoCornPopup {
     const durationSelect = document.getElementById('duration-select');
     const customDays = document.getElementById('custom-days');
     
+    if (!durationSelect) {
+      console.error('Duration select not found');
+      this.showNotification('Duration selector not found', 'error');
+      return;
+    }
+    
     let days;
     if (durationSelect.value === 'custom') {
+      if (!customDays) {
+        this.showNotification('Custom days input not found', 'error');
+        return;
+      }
       days = parseInt(customDays.value);
       if (!days || days < 1 || days > 365) {
         this.showNotification('Please enter a valid number of days (1-365)', 'warning');
@@ -592,34 +819,49 @@ class NoCornPopup {
     };
 
     try {
-      // Save to backend if authenticated
       if (this.isAuthenticated && this.backendConnection) {
-        await this.backendConnection.createSession(this.activeSession);
-        console.log('✅ Session created in backend');
-      }
-      
-      // Always save to local storage as backup
-      await chrome.storage.local.set({ activeSession: this.activeSession });
-
-      // Update blocking rules
-      await this.updateBlockingRules();
-
-      // Award points for starting session
-      if (this.isAuthenticated && this.backendConnection) {
-        // Points already awarded by backend
-        const userData = await this.backendConnection.getUserData();
-        this.totalScore = userData.total_score;
+        try {
+          // Create session via backend
+          await this.backendConnection.createSession(this.activeSession);
+          
+          // Get updated points from backend
+          const userData = await this.backendConnection.getUserData();
+          this.totalScore = userData.total_score || this.totalScore;
+          
+          console.log('✅ Session created in backend');
+        } catch (backendError) {
+          console.error('Failed to create session in backend:', backendError);
+          // Only award points locally if backend is completely unavailable
+          if (!this.backendConnection.isAuthenticated()) {
+            this.totalScore += days * 50;
+          }
+          this.showNotification('Session saved locally (backend unavailable)', 'warning');
+        }
       } else {
+        // Award points locally
         this.totalScore += days * 50;
       }
       
-      await chrome.storage.local.set({ totalScore: this.totalScore });
+      // Always save to local storage as backup
+      await chrome.storage.local.set({ 
+        activeSession: this.activeSession,
+        totalScore: this.totalScore 
+      });
+
+      // Update blocking rules
+      await this.updateBlockingRules();
 
       this.updateDisplay();
       this.showNotification(`Block session started for ${days} days! (+${days * 50} points)`, 'success');
 
       // Notify background script
-      chrome.runtime.sendMessage({ action: 'sessionStarted', session: this.activeSession });
+      try {
+        chrome.runtime.sendMessage({ action: 'sessionStarted', session: this.activeSession });
+      } catch (error) {
+        console.error('Failed to notify background script:', error);
+      }
+      
+      console.log('✅ Block session started successfully');
       
     } catch (error) {
       console.error('Failed to start session:', error);
@@ -660,23 +902,57 @@ class NoCornPopup {
   }
 
   async updateBlockingRules() {
-    const rules = this.activeSession.blockedSites.map((site, index) => ({
-      id: index + 1,
-      priority: 1,
-      action: {
-        type: 'redirect',
-        redirect: { url: chrome.runtime.getURL('blocked.html') + '?site=' + encodeURIComponent(site) }
-      },
-      condition: {
-        urlFilter: `*://*.${site}/*`,
-        resourceTypes: ['main_frame']
+    if (!this.activeSession || !this.activeSession.blockedSites || this.activeSession.blockedSites.length === 0) {
+      console.log('No active session or sites to block, clearing all rules.');
+      try {
+        const existingRules = await chrome.declarativeNetRequest.getDynamicRules();
+        const removeRuleIds = existingRules.map(rule => rule.id);
+        if (removeRuleIds.length > 0) {
+          await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds });
+          console.log('✅ All blocking rules cleared.');
+        }
+      } catch (error) {
+        console.error('Failed to clear blocking rules:', error);
       }
-    }));
-
-    await chrome.declarativeNetRequest.updateDynamicRules({
-      removeRuleIds: Array.from({length: 100}, (_, i) => i + 1),
-      addRules: rules
-    });
+      return;
+    }
+  
+    try {
+      const rules = this.activeSession.blockedSites.map((site, index) => {
+        const ruleId = index + 1;
+        return {
+          id: ruleId,
+          priority: 1,
+          action: {
+            type: 'redirect',
+            redirect: { url: chrome.runtime.getURL('blocked.html') + '?site=' + encodeURIComponent(site) }
+          },
+          condition: {
+            // CORRECTED: Just the domain name is needed. The API handles subdomains automatically.
+            requestDomains: [site],
+            resourceTypes: ['main_frame']
+          }
+        };
+      });
+  
+      console.log(`Creating/updating ${rules.length} blocking rules.`);
+  
+      const existingRules = await chrome.declarativeNetRequest.getDynamicRules();
+      const existingRuleIds = existingRules.map(rule => rule.id);
+      
+      // A robust way to update is to remove all existing rules and add the new set.
+      await chrome.declarativeNetRequest.updateDynamicRules({
+        removeRuleIds: existingRuleIds,
+        addRules: rules
+      });
+  
+      console.log('✅ Blocking rules updated successfully');
+      this.showNotification(`Blocking ${this.activeSession.blockedSites.length} sites`, 'info');
+  
+    } catch (error) {
+      console.error('Failed to update blocking rules:', error.message, error);
+      this.showNotification('Error applying blocking rules. See console for details.', 'error');
+    }
   }
 
   async completeSession() {
@@ -868,8 +1144,7 @@ class NoCornPopup {
       <div class="modal-content" style="text-align: center; background: linear-gradient(135deg, #ff6b6b, #ee5a5a); color: white; padding: 30px;">
         <h2 style="color: white; margin-bottom: 20px;">🆘 EMERGENCY SUPPORT 🆘</h2>
         <div style="font-size: 64px; margin: 20px 0; animation: pulse 1s infinite;">⚠️</div>
-        <p style="margin-bottom: 20px; font-size: 18px; font-weight: 600;">You activated panic mode!</p>
-        <p style="margin-bottom: 30px;">Take these steps right now:</p>
+        <p style="margin-bottom: 20px;">Take these steps right now:</p>
         <div style="text-align: left; background: rgba(255,255,255,0.1); padding: 20px; border-radius: 8px; margin: 20px 0;">
           <p>✅ Step away from the computer</p>
           <p>✅ Take 10 deep breaths</p>
@@ -889,48 +1164,49 @@ class NoCornPopup {
     });
   }
 
-  checkAchievements() {
-    const newAchievements = [];
-    
-    const achievementDefinitions = [
-      { id: 'first_site', title: 'First Steps', desc: 'Add your first site', icon: '🎯', condition: () => this.blockedSites.length >= 1 },
-      { id: 'week_warrior', title: 'Week Warrior', desc: '7 day streak', icon: '🗓️', condition: () => this.currentStreak >= 7 },
-      { id: 'month_master', title: 'Month Master', desc: '30 day streak', icon: '📅', condition: () => this.currentStreak >= 30 },
-      { id: 'point_collector', title: 'Point Collector', desc: 'Earn 1000 points', icon: '💎', condition: () => this.totalScore >= 1000 },
-      { id: 'session_starter', title: 'Session Starter', desc: 'Complete first session', icon: '🚀', condition: () => this.stats.sessionsCompleted >= 1 },
-      { id: 'dedication', title: 'Dedication', desc: 'Complete 5 sessions', icon: '🏆', condition: () => this.stats.sessionsCompleted >= 5 }
-    ];
-    
-    achievementDefinitions.forEach(achievement => {
-      if (!this.achievements[achievement.id] && achievement.condition()) {
-        this.achievements[achievement.id] = {
-          ...achievement,
-          unlockedAt: Date.now()
-        };
-        newAchievements.push(achievement);
-      }
-    });
-    
-    if (newAchievements.length > 0) {
-      chrome.storage.local.set({ achievements: this.achievements });
-      newAchievements.forEach(achievement => {
-        this.showNotification(`🏆 Achievement Unlocked: ${achievement.title}!`, 'success');
-      });
-    }
-  }
-
   setupModals() {
-    document.querySelectorAll('.close').forEach(closeBtn => {
-      closeBtn.addEventListener('click', (e) => {
-        e.target.closest('.modal').style.display = 'none';
+    // Setup modal close functionality with better error handling
+    const setupModalCloseListeners = () => {
+      document.querySelectorAll('.close').forEach(closeBtn => {
+        closeBtn.addEventListener('click', (e) => {
+          const modal = e.target.closest('.modal');
+          if (modal) {
+            modal.style.display = 'none';
+          }
+        });
+      });
+      
+      // Click outside to close
+      window.addEventListener('click', (e) => {
+        if (e.target.classList.contains('modal')) {
+          e.target.style.display = 'none';
+        }
+      });
+    };
+
+    // Initial setup
+    setupModalCloseListeners();
+    
+    // Re-setup when new modals are added dynamically
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.type === 'childList') {
+          mutation.addedNodes.forEach((node) => {
+            if (node.nodeType === Node.ELEMENT_NODE && node.classList && node.classList.contains('modal')) {
+              // Setup close listeners for dynamically added modals
+              const closeBtn = node.querySelector('.close');
+              if (closeBtn) {
+                closeBtn.addEventListener('click', (e) => {
+                  node.style.display = 'none';
+                });
+              }
+            }
+          });
+        }
       });
     });
     
-    window.addEventListener('click', (e) => {
-      if (e.target.classList.contains('modal')) {
-        e.target.style.display = 'none';
-      }
-    });
+    observer.observe(document.body, { childList: true, subtree: true });
   }
 
   showAchievements() {
@@ -1016,10 +1292,45 @@ class NoCornPopup {
       }, 300);
     }, 3000);
   }
+
+  checkAchievements() {
+    const newAchievements = [];
+    
+    const achievementDefinitions = [
+      { id: 'first_site', title: 'First Steps', desc: 'Add your first site', icon: '🎯', condition: () => this.blockedSites.length >= 1 },
+      { id: 'week_warrior', title: 'Week Warrior', desc: '7 day streak', icon: '🗓️', condition: () => this.currentStreak >= 7 },
+      { id: 'month_master', title: 'Month Master', desc: '30 day streak', icon: '📅', condition: () => this.currentStreak >= 30 },
+      { id: 'point_collector', title: 'Point Collector', desc: 'Earn 1000 points', icon: '💎', condition: () => this.totalScore >= 1000 },
+      { id: 'session_starter', title: 'Session Starter', desc: 'Complete first session', icon: '🚀', condition: () => this.stats.sessionsCompleted >= 1 },
+      { id: 'dedication', title: 'Dedication', desc: 'Complete 5 sessions', icon: '🏆', condition: () => this.stats.sessionsCompleted >= 5 }
+    ];
+    
+    achievementDefinitions.forEach(achievement => {
+      if (!this.achievements[achievement.id] && achievement.condition()) {
+        this.achievements[achievement.id] = {
+          ...achievement,
+          unlockedAt: Date.now()
+        };
+        newAchievements.push(achievement);
+      }
+    });
+    
+    if (newAchievements.length > 0) {
+      try {
+        chrome.storage.local.set({ achievements: this.achievements });
+        newAchievements.forEach(achievement => {
+          this.showNotification(`🏆 Achievement Unlocked: ${achievement.title}!`, 'success');
+        });
+      } catch (error) {
+        console.error('Failed to save achievements:', error);
+      }
+    }
+  }
 }
 
 // Initialize popup when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
+  console.log('DOM loaded, initializing NoCornPopup');
   new NoCornPopup();
 });
 

@@ -92,6 +92,10 @@ class NoCornOptions {
       this.saveAccountabilityPartner();
     });
 
+    document.getElementById('partner-email').addEventListener('input', (e) => {
+      this.handlePartnerSearch(e.target.value);
+    });
+
     document.getElementById('remove-partner-btn').addEventListener('click', () => {
       this.removeAccountabilityPartner();
     });
@@ -200,16 +204,68 @@ class NoCornOptions {
     }
   }
 
-  showAuthenticatedState(user) {
+  async showAuthenticatedState(user) {
     document.getElementById('auth-status-text-settings').textContent = 'Signed In';
     document.getElementById('signin-btn-settings').style.display = 'none';
     document.getElementById('signout-btn-settings').style.display = 'inline-block';
     document.getElementById('user-info-settings').style.display = 'block';
     
+    // Set user email
     document.getElementById('user-email-settings').textContent = user.email;
-    // Try to get username from user metadata
-    const username = user.user_metadata?.username || 'Not set';
-    document.getElementById('user-username-settings').textContent = username;
+    
+    // Set user ID (first 8 characters for privacy)
+    const userId = user.id ? user.id.substring(0, 8) + '...' : 'Unknown';
+    document.getElementById('user-id-settings').textContent = userId;
+    
+    // Set member since date
+    const createdAt = user.created_at ? new Date(user.created_at).toLocaleDateString() : 'Unknown';
+    document.getElementById('user-created-settings').textContent = createdAt;
+    
+    // Set user avatar (first letter of email)
+    const avatarLetter = user.email ? user.email.charAt(0).toUpperCase() : 'U';
+    document.getElementById('user-avatar-settings').textContent = avatarLetter;
+    
+    // Load and display current points and streak - sync with backend first
+    try {
+      let totalScore = 0;
+      let currentStreak = 0;
+      
+      // Try to get fresh data from backend first
+      try {
+        const { default: backendConnection } = await import('../src/backend/BackendConnection.js');
+        if (backendConnection.isAuthenticated()) {
+          const userData = await backendConnection.getUserData();
+          totalScore = userData.total_score || 0;
+          currentStreak = userData.current_streak || 0;
+          
+          // Update local storage with fresh backend data
+          await chrome.storage.local.set({ 
+            totalScore: totalScore,
+            currentStreak: currentStreak
+          });
+          
+          console.log('✅ User stats synced from backend');
+        } else {
+          // Fallback to local storage
+          const data = await chrome.storage.local.get(['totalScore', 'currentStreak']);
+          totalScore = data.totalScore || 0;
+          currentStreak = data.currentStreak || 0;
+        }
+      } catch (backendError) {
+        console.error('Backend sync failed, using local storage:', backendError);
+        // Fallback to local storage
+        const data = await chrome.storage.local.get(['totalScore', 'currentStreak']);
+        totalScore = data.totalScore || 0;
+        currentStreak = data.currentStreak || 0;
+      }
+      
+      document.getElementById('user-points-settings').textContent = totalScore.toLocaleString();
+      document.getElementById('user-streak-settings').textContent = currentStreak;
+    } catch (error) {
+      console.error('Failed to load user stats:', error);
+      document.getElementById('user-points-settings').textContent = '0';
+      document.getElementById('user-streak-settings').textContent = '0';
+    }
   }
 
   showUnauthenticatedState() {
@@ -290,8 +346,36 @@ class NoCornOptions {
   }
 
   async loadBlockedSites() {
-    const data = await chrome.storage.local.get(['blockedSites']);
-    this.blockedSites = data.blockedSites || [];
+    try {
+      // Dynamically import services
+      const { default: authService } = await import('../src/auth/AuthService.js');
+      const { default: backendConnection } = await import('../src/backend/BackendConnection.js');
+
+      // Initialize auth service to check status
+      await authService.initialize();
+
+      if (authService.isAuthenticated()) {
+        // If authenticated, try fetching from backend as the source of truth
+        if (!backendConnection.isInitialized) {
+          await backendConnection.initialize();
+        }
+        const backendSites = await backendConnection.getBlockedSites();
+        this.blockedSites = backendSites.map(s => s.site) || [];
+        
+        // Also update local storage to keep it in sync
+        await chrome.storage.local.set({ blockedSites: this.blockedSites });
+      } else {
+        // If not authenticated, fall back to local storage
+        const data = await chrome.storage.local.get(['blockedSites']);
+        this.blockedSites = data.blockedSites || [];
+      }
+    } catch (error) {
+      console.error('Failed to load blocked sites, falling back to local storage:', error);
+      // If any error occurs (e.g., backend offline), use local storage as a safe fallback
+      const data = await chrome.storage.local.get(['blockedSites']);
+      this.blockedSites = data.blockedSites || [];
+    }
+    
     this.updateBlockedSitesDisplay();
   }
 
@@ -309,9 +393,64 @@ class NoCornOptions {
           <span style="font-size: 18px; margin-right: 8px;">🚫</span>
           <span style="font-weight: 500;">${site}</span>
         </div>
-        <span style="color: #666; font-size: 12px;">Blocked</span>
+        <button class="remove-blocked-site" data-site="${site}" style="background: #dc3545; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">Remove</button>
       </div>
     `).join('');
+
+    // Add remove listeners
+    list.querySelectorAll('.remove-blocked-site').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        this.removeBlockedSite(e.target.dataset.site);
+      });
+    });
+  }
+
+  async removeBlockedSite(site) {
+    if (confirm(`Are you sure you want to remove ${site} from your blocked list?`)) {
+      try {
+        // Try to remove from backend first
+        const { needsAuthentication } = await chrome.storage.local.get(['needsAuthentication']);
+        
+        if (!needsAuthentication) {
+          try {
+            const { default: backendConnection } = await import('../src/backend/BackendConnection.js');
+            if (!backendConnection.isInitialized) {
+              await backendConnection.initialize();
+            }
+            
+            if (backendConnection.isAuthenticated()) {
+              await backendConnection.removeBlockedSite(site);
+              
+              // Sync with backend
+              const backendSites = await backendConnection.getBlockedSites();
+              this.blockedSites = backendSites.map(s => s.site) || [];
+              await chrome.storage.local.set({ blockedSites: this.blockedSites });
+              
+              console.log('✅ Site removed via backend');
+            } else {
+              // Fallback to local storage
+              this.blockedSites = this.blockedSites.filter(s => s !== site);
+              await chrome.storage.local.set({ blockedSites: this.blockedSites });
+            }
+          } catch (backendError) {
+            console.error('Backend remove failed, using local storage:', backendError);
+            // Fallback to local storage
+            this.blockedSites = this.blockedSites.filter(s => s !== site);
+            await chrome.storage.local.set({ blockedSites: this.blockedSites });
+          }
+        } else {
+          // Use local storage only
+          this.blockedSites = this.blockedSites.filter(s => s !== site);
+          await chrome.storage.local.set({ blockedSites: this.blockedSites });
+        }
+        
+        this.updateBlockedSitesDisplay();
+        this.showNotification(`Removed ${site} from blocked list`, 'info');
+      } catch (error) {
+        console.error('Failed to remove site:', error);
+        this.showNotification('Failed to remove site', 'error');
+      }
+    }
   }
 
   async saveSetting(key, value) {
@@ -422,6 +561,47 @@ class NoCornOptions {
     
     this.updateAccountabilityPartnerDisplay();
     this.showNotification('Accountability partner saved', 'success');
+  }
+
+  async handlePartnerSearch(query) {
+    const resultsContainer = document.getElementById('partner-search-results');
+    if (query.length < 3) {
+      resultsContainer.innerHTML = '';
+      resultsContainer.style.display = 'none';
+      return;
+    }
+
+    try {
+      const { default: backendConnection } = await import('../src/backend/BackendConnection.js');
+      if (!backendConnection.isInitialized) {
+        await backendConnection.initialize();
+      }
+      
+      const users = await backendConnection.searchUsers(query);
+
+      if (users.length > 0) {
+        resultsContainer.innerHTML = users.map(user => `
+          <div class="search-result-item" data-email="${user.email}">
+            ${user.email}
+          </div>
+        `).join('');
+        resultsContainer.style.display = 'block';
+
+        resultsContainer.querySelectorAll('.search-result-item').forEach(item => {
+          item.addEventListener('click', () => {
+            document.getElementById('partner-email').value = item.dataset.email;
+            resultsContainer.innerHTML = '';
+            resultsContainer.style.display = 'none';
+          });
+        });
+      } else {
+        resultsContainer.innerHTML = '<div class="search-result-item">No users found</div>';
+        resultsContainer.style.display = 'block';
+      }
+    } catch (error) {
+      console.error('Failed to search for partners:', error);
+      resultsContainer.style.display = 'none';
+    }
   }
 
   async removeAccountabilityPartner() {
